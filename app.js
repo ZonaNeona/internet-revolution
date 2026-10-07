@@ -132,6 +132,7 @@ const screens = ["home","run","results","detail"];
 let activeDataset = DATASETS.vacuum;
 let activeQuery = "";
 let activeRunId = null;
+let activeRunState = null;
 let pollTimer = null;
 let runFinished = false;
 
@@ -188,6 +189,7 @@ async function startResearch(query){
   activeQuery=query;
   activeDataset=datasetFor(query);
   activeRunId=null;
+  activeRunState=null;
   runFinished=false;
   document.getElementById("runTitle").textContent=query;
   setRunSubtitle(query);
@@ -264,6 +266,7 @@ function resetRunUI(){
 
 function applyRunState(run){
   activeRunId=run.id;
+  activeRunState=run;
   activeQuery=run.query;
   activeDataset=DATASETS[run.dataset_key]||datasetFor(run.query);
   document.getElementById("runId").textContent="PH-"+run.id.slice(0,8).toUpperCase();
@@ -273,7 +276,7 @@ function applyRunState(run){
   document.getElementById("stageDescription").textContent=run.stage_description;
   document.getElementById("progressPercent").textContent=run.progress+"%";
   document.getElementById("progressBar").style.width=run.progress+"%";
-  document.getElementById("costValue").textContent="$"+Number(run.estimated_cost_usd||0).toFixed(2);
+  document.getElementById("costValue").textContent="$"+Number(run.actual_cost_usd ?? run.estimated_cost_usd ?? 0).toFixed(2);
 
   const stageIndex=Number(run.stage_index||0);
   document.querySelectorAll(".pipe-step").forEach((el,i)=>{
@@ -308,11 +311,21 @@ function renderScoutState(scouts,stageIndex,status){
   ["wb","ozon","amazon","lazada"].forEach(key=>{
     const el=document.querySelector('.scout[data-scout="'+key+'"]');
     const value=scouts[key]||{status:"waiting",records:0,queries:0,pages:0};
+    const live=value.source==="live";
     const done=value.status==="done" || stageIndex>2 || status==="completed";
     const running=!done && stageIndex===2;
     el.classList.toggle("done",done);
     el.classList.toggle("running",running);
-    el.querySelector(".scout-state").textContent=done?"готово":running?"исследует":"ожидает";
+    el.classList.toggle("live-source",live);
+    let state=done?"готово":running?"исследует":"ожидает";
+    if(live){
+      if(value.status==="failed") state="LIVE · fallback";
+      else if(value.status==="budget_blocked") state="LIVE · budget";
+      else state="LIVE · "+state;
+    }else if(done){
+      state="DEMO · готово";
+    }
+    el.querySelector(".scout-state").textContent=state;
     el.querySelector(".scout-count").textContent=value.records||0;
     el.querySelector(".mini-progress i").style.width=done?"100%":running?"35%":"0";
     el.querySelector("footer span:first-child").textContent=(value.queries||0)+" запросов";
@@ -370,6 +383,7 @@ async function resumeRunFromUrl(){
   try{
     const run=await apiRequest("/api/research/"+encodeURIComponent(runId));
     activeRunId=run.id;
+    activeRunState=run;
     activeQuery=run.query;
     activeDataset=DATASETS[run.dataset_key]||datasetFor(run.query);
     runFinished=false;
@@ -401,6 +415,7 @@ function renderResults(){
   document.querySelectorAll(".opp-card").forEach(card=>card.addEventListener("click",()=>openOpportunity(Number(card.dataset.index))));
   lucide.createIcons();
   showScreen("results");
+  renderResultLiveEvidence();
 }
 
 function opportunityCard(o,i){
@@ -489,3 +504,63 @@ function escapeHtml(str){return String(str).replace(/[&<>"']/g,m=>({"&":"&amp;",
 updateHermesContext("home");
 resumeRunFromUrl();
 lucide.createIcons();
+
+async function showLiveEvidence(){
+  if(!activeRunId){
+    showToast("Сначала запустите исследование.");
+    return;
+  }
+  const panel=document.getElementById("liveEvidencePanel");
+  const button=document.getElementById("liveEvidenceBtn");
+  if(!panel || !button)return;
+  button.disabled=true;
+  button.textContent="Загрузка…";
+  try{
+    const data=await apiRequest("/api/research/"+activeRunId+"/live-evidence");
+    const products=(data.products||[]).slice(0,8);
+    const calls=data.search_calls||[];
+    const total=calls.reduce((sum,x)=>sum+Number(x.cost_usd||0),0);
+    const items=products.length
+      ? products.map(p=>{
+          const raw=String(p.source_url||"");
+          const href=/^https?:\/\//i.test(raw)?raw:"#";
+          const meta=[
+            p.price_text||null,
+            p.rating!=null?("★ "+p.rating):null,
+            p.review_count!=null?(p.review_count+" отзывов"):null
+          ].filter(Boolean).join(" · ") || "данные из live search";
+          return '<a class="live-evidence-item" href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer"><strong>'+escapeHtml(p.title||"Без названия")+'</strong><small>'+escapeHtml(meta)+'</small></a>';
+        }).join("")
+      : '<div class="live-evidence-item"><strong>Live records пока нет</strong><small>Amazon Scout ещё выполняется или сработал fallback.</small></div>';
+    const costs=calls.map((c,i)=>'<span>search '+(i+1)+': $'+Number(c.cost_usd||0).toFixed(4)+'</span>').join("");
+    panel.innerHTML='<div class="live-evidence-head"><strong>Amazon · реальные найденные карточки</strong><span>'+products.length+' показано · $'+total.toFixed(4)+'</span></div><div class="live-evidence-list">'+items+'</div><div class="live-costs">'+costs+'</div>';
+    panel.hidden=false;
+  }catch(err){
+    showToast("Не удалось загрузить live evidence: "+err.message);
+  }finally{
+    button.disabled=false;
+    button.textContent="Показать live evidence";
+  }
+}
+
+const liveEvidenceButton=document.getElementById("liveEvidenceBtn");
+if(liveEvidenceButton){
+  liveEvidenceButton.addEventListener("click",showLiveEvidence);
+}
+
+
+async function renderResultLiveEvidence(){
+  const panel=document.getElementById("resultLiveEvidence");
+  if(!panel || !activeRunId)return;
+  try{
+    const data=await apiRequest("/api/research/"+activeRunId+"/live-evidence");
+    const calls=data.search_calls||[];
+    const products=data.products||[];
+    if(!calls.length && !products.length){panel.hidden=true;return;}
+    const total=calls.reduce((sum,item)=>sum+Number(item.cost_usd||0),0);
+    panel.textContent="Amazon LIVE · "+products.length+" records · $"+total.toFixed(4);
+    panel.hidden=false;
+  }catch(err){
+    panel.hidden=true;
+  }
+}
