@@ -7,6 +7,7 @@ from psycopg.types.json import Jsonb
 
 from backend.db import connect
 from backend.fixtures import DATASETS, STAGES, initial_scouts, initial_stats
+from backend.market_scout import run_amazon_live_scout
 
 POLL_SECONDS = 0.20
 NEXT_STAGE_DELAY = 0.75
@@ -37,18 +38,29 @@ def claim_job():
         return dict(job)
 
 
-def stage_state(dataset_key: str, stage_index: int):
+def stage_state(dataset_key: str, stage_index: int, live_amazon: dict | None = None):
     dataset = DATASETS[dataset_key]
     stats = initial_stats()
     scouts = initial_scouts()
 
     if stage_index >= 1:
         stats["queries"] = dataset["stats"]["queries"]
+
     if stage_index >= 2:
         scouts = {
-            name: {"status": "done", **values}
+            name: {"status": "done", "source": "fixture", **values}
             for name, values in dataset["scouts"].items()
         }
+        if live_amazon and live_amazon.get("enabled"):
+            scouts["amazon"].update({
+                "status": live_amazon.get("status", "done"),
+                "source": "live",
+                "records": live_amazon.get("records", 0),
+                "queries": live_amazon.get("queries", 0),
+                "pages": live_amazon.get("records", 0),
+                "cost_usd": live_amazon.get("cost_usd", 0),
+            })
+
     if stage_index >= 3:
         stats["pages"] = dataset["stats"]["pages"]
         stats["records"] = dataset["stats"]["records"]
@@ -57,21 +69,49 @@ def stage_state(dataset_key: str, stage_index: int):
     if stage_index >= 5:
         stats["candidates"] = dataset["stats"]["candidates"]
         stats["supplier_matches"] = dataset["stats"]["supplier_matches"]
-    if stage_index >= 6:
-        stats["candidates"] = dataset["stats"]["candidates"]
-        stats["supplier_matches"] = dataset["stats"]["supplier_matches"]
     if stage_index >= 7:
         stats = dict(dataset["stats"])
 
     return stats, scouts
 
 
-def event_message(dataset_key: str, stage_index: int) -> str:
+def live_totals(run_id: str) -> tuple[float, int, int]:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COALESCE(SUM(cost_usd) FILTER (WHERE status='done'),0) AS cost,
+                COUNT(*) FILTER (WHERE status='done') AS calls
+            FROM search_calls
+            WHERE run_id=%s
+            """,
+            (run_id,),
+        ).fetchone()
+        products = conn.execute(
+            "SELECT COUNT(*) AS count FROM raw_products WHERE run_id=%s",
+            (run_id,),
+        ).fetchone()
+    return float(row["cost"] or 0), int(row["calls"] or 0), int(products["count"] or 0)
+
+
+def event_message(dataset_key: str, stage_index: int, live_amazon: dict | None = None) -> str:
     dataset = DATASETS[dataset_key]
     stats = dataset["stats"]
+    if stage_index == 2 and live_amazon and live_amazon.get("enabled"):
+        if live_amazon.get("status") == "done":
+            return (
+                "collect_markets → Amazon LIVE: "
+                + str(live_amazon.get("queries", 0))
+                + " search calls, "
+                + str(live_amazon.get("records", 0))
+                + " records, USD "
+                + format(float(live_amazon.get("cost_usd", 0)), ".4f")
+            )
+        return "collect_markets → Amazon LIVE fallback: " + str(live_amazon.get("status"))
+
     messages = {
         1: f"expand_queries → {stats['queries']} поисковых гипотез",
-        2: "collect_markets → 4 scouts завершили demo sampling",
+        2: "collect_markets → demo sampling",
         3: f"normalize_products → {stats['records']} product records",
         4: f"cluster_archetypes → {stats['archetypes']} товарных архетипов",
         5: f"probe_suppliers → {stats['supplier_matches']} supplier matches",
@@ -87,34 +127,68 @@ def process_job(job: dict):
 
     with connect() as conn:
         run = conn.execute(
-            "SELECT * FROM research_runs WHERE id=%s FOR UPDATE",
+            "SELECT * FROM research_runs WHERE id=%s",
             (rid,),
         ).fetchone()
-        if not run:
+
+    if not run:
+        with connect() as conn:
             conn.execute(
                 "UPDATE research_jobs SET status='failed',last_error='run missing',updated_at=now() WHERE id=%s",
                 (job["id"],),
             )
-            return
-        if run["status"] in ("completed", "failed", "cancelled"):
+        return
+
+    if run["status"] in ("completed", "failed", "cancelled"):
+        with connect() as conn:
             conn.execute(
                 "UPDATE research_jobs SET status='cancelled',updated_at=now() WHERE id=%s",
                 (job["id"],),
             )
-            return
+        return
 
-        dataset_key = run["dataset_key"]
-        dataset = DATASETS[dataset_key]
-        stage = STAGES[stage_index]
-        stats, scouts = stage_state(dataset_key, stage_index)
-        cost = round(float(dataset["cost"]) * (stage["progress"] / 100.0), 4)
-        completed = stage_index == len(STAGES) - 1
+    dataset_key = run["dataset_key"]
+    stage = STAGES[stage_index]
+    live_amazon = None
 
+    if stage_index == 2:
+        try:
+            live_amazon = run_amazon_live_scout(rid, dataset_key, run["query"])
+        except Exception as exc:
+            live_amazon = {
+                "enabled": True,
+                "status": "failed",
+                "records": 0,
+                "queries": 0,
+                "cost_usd": live_totals(rid)[0],
+                "errors": [f"{type(exc).__name__}: {exc}"],
+            }
+
+    actual_cost, live_calls, live_records = live_totals(rid)
+
+    if stage_index > 2:
+        previous_scouts = run.get("scouts") or {}
+        prev_amazon = previous_scouts.get("amazon") or {}
+        if prev_amazon.get("source") == "live":
+            live_amazon = {
+                "enabled": True,
+                "status": prev_amazon.get("status", "done"),
+                "records": prev_amazon.get("records", live_records),
+                "queries": prev_amazon.get("queries", live_calls),
+                "cost_usd": prev_amazon.get("cost_usd", actual_cost),
+            }
+
+    stats, scouts = stage_state(dataset_key, stage_index, live_amazon)
+    completed = stage_index == len(STAGES) - 1
+
+    with connect() as conn:
         conn.execute(
             """
             UPDATE research_runs
             SET status=%s,stage_index=%s,stage_key=%s,stage_title=%s,
-                stage_description=%s,progress=%s,estimated_cost_usd=%s,
+                stage_description=%s,progress=%s,
+                estimated_cost_usd=%s,actual_cost_usd=%s,
+                live_search_calls=%s,live_records=%s,
                 stats=%s,scouts=%s,result_summary=%s,
                 completed_at=CASE WHEN %s THEN now() ELSE completed_at END,
                 updated_at=now(),error=NULL
@@ -127,10 +201,17 @@ def process_job(job: dict):
                 stage["title"],
                 stage["description"],
                 stage["progress"],
-                cost,
+                actual_cost,
+                actual_cost,
+                live_calls,
+                live_records,
                 Jsonb(stats),
                 Jsonb(scouts),
-                Jsonb({"ready": completed, "dataset_key": dataset_key}),
+                Jsonb({
+                    "ready": completed,
+                    "dataset_key": dataset_key,
+                    "live_amazon": bool(live_amazon and live_amazon.get("enabled")),
+                }),
                 completed,
                 rid,
             ),
@@ -143,8 +224,14 @@ def process_job(job: dict):
             (
                 rid,
                 stage_index,
-                event_message(dataset_key, stage_index),
-                Jsonb({"stage": stage["key"], "progress": stage["progress"]}),
+                event_message(dataset_key, stage_index, live_amazon),
+                Jsonb({
+                    "stage": stage["key"],
+                    "progress": stage["progress"],
+                    "actual_cost_usd": actual_cost,
+                    "live_search_calls": live_calls,
+                    "live_records": live_records,
+                }),
             ),
         )
         conn.execute(
@@ -166,7 +253,12 @@ def process_job(job: dict):
                 INSERT INTO audit_log(run_id,action,actor,details)
                 VALUES (%s,'research_completed','worker',%s)
                 """,
-                (rid, Jsonb({"dataset_key": dataset_key, "cost_usd": cost})),
+                (rid, Jsonb({
+                    "dataset_key": dataset_key,
+                    "actual_cost_usd": actual_cost,
+                    "live_search_calls": live_calls,
+                    "live_records": live_records,
+                })),
             )
 
 
@@ -212,14 +304,18 @@ def fail_job(job: dict, exc: Exception):
 
 
 def recover_stale_jobs():
+    # Single-worker deployment: every RUNNING job found on startup
+    # belongs to the dead predecessor and can be retried immediately.
     with connect() as conn:
         conn.execute(
             """
             UPDATE research_jobs
-            SET status='pending',available_at=now(),updated_at=now(),
-                last_error=COALESCE(last_error,'') || ' [recovered stale lock]'
+            SET status='pending',available_at=now(),locked_at=NULL,updated_at=now(),
+                last_error=CASE
+                    WHEN COALESCE(last_error,'') = '' THEN '[recovered worker restart]'
+                    ELSE last_error || ' [recovered worker restart]'
+                END
             WHERE status='running'
-              AND locked_at < now() - interval '2 minutes'
             """
         )
 
