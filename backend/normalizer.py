@@ -348,11 +348,16 @@ def get_live_opportunities(run_id: str, limit: int = 5) -> list[dict[str, Any]]:
             SELECT pa.id,pa.archetype_key,pa.label,pa.member_count,pa.market_count,
                    pa.features,os.foreign_signal,os.russia_signal,
                    os.cross_market_presence,os.russia_gap,os.review_mass_score,
-                   os.feature_recurrence,os.opportunity_score
+                   os.feature_recurrence,os.opportunity_score,
+                   os.market_score,os.supplier_availability_score,
+                   os.economics_score,os.final_score,os.decision,
+                   os.final_explanation
             FROM opportunity_scores os
             JOIN product_archetypes pa ON pa.id=os.archetype_id
             WHERE os.run_id=%s
-            ORDER BY os.opportunity_score DESC,pa.member_count DESC
+            ORDER BY COALESCE(os.final_score,os.opportunity_score) DESC,
+                     os.opportunity_score DESC,
+                     pa.member_count DESC
             LIMIT %s
             """,
             (run_id, limit),
