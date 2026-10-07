@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
 from .db import connect
+from .economics import get_economics
 from .fixtures import DATASETS, STAGES, dataset_key_for, initial_scouts, initial_stats
 from .market_scout import live_evidence
 from .normalizer import get_live_opportunities
@@ -181,6 +182,15 @@ def get_live_evidence(run_id: uuid.UUID):
         if not _get_run(conn, rid):
             raise HTTPException(status_code=404, detail="Research run not found")
     return jsonable_encoder(live_evidence(rid))
+
+
+@app.get("/api/research/{run_id}/economics")
+def get_research_economics(run_id: uuid.UUID):
+    rid = str(run_id)
+    with connect() as conn:
+        if not _get_run(conn, rid):
+            raise HTTPException(status_code=404, detail="Research run not found")
+    return {"items": jsonable_encoder(get_economics(rid))}
 
 
 @app.get("/api/research/{run_id}/supplier-evidence")
