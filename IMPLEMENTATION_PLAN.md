@@ -558,7 +558,7 @@ Decision Report
 - ✅ Этап 1 — fixture-driven research execution.
 - ✅ Этап 2 — глубокий TOP-5 UX.
 - ✅ Этап 3 — FastAPI + PostgreSQL + persistent jobs/state machine.
-- ⏭ Этап 4 — первый реальный OpenRouter Research Tool.
+- 🟡 Этап 4 — частично реализован: Amazon Market Scout уже работает через реальный OpenRouter web-search; WB/Ozon/Lazada и supplier search — следующие.
 
 Backend уже хранит research runs, jobs, events и audit trail в PostgreSQL. UI восстанавливает активный run после reload по ?run=<uuid>.
 
@@ -641,6 +641,8 @@ Fixture-driven.
 ---
 
 ## Этап 4 — OpenRouter Research Tools
+
+**Статус: 🟡 частично реализовано.** Amazon Scout выполняет до 3 реальных OpenRouter web-search вызовов, сохраняет search_calls, raw_products, source evidence и фактический cost в PostgreSQL. Первый измеренный run: 3 search calls → 14 уникальных Amazon records → $0.024472.
 
 Сделать tools:
 
