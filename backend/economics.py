@@ -94,15 +94,30 @@ def _robust_values(values: list[float]) -> list[float]:
     return filtered or values
 
 
-def _top_archetype(run_id: str) -> dict[str, Any] | None:
+def _top_archetype(
+    run_id: str,
+    archetype_id: int | None = None,
+) -> dict[str, Any] | None:
     with connect() as conn:
+        if archetype_id is not None:
+            return conn.execute(
+                """
+                SELECT pa.id,pa.archetype_key,pa.label
+                FROM opportunity_scores os
+                JOIN product_archetypes pa ON pa.id=os.archetype_id
+                WHERE os.run_id=%s AND pa.id=%s
+                LIMIT 1
+                """,
+                (run_id, archetype_id),
+            ).fetchone()
         return conn.execute(
             """
             SELECT pa.id,pa.archetype_key,pa.label
             FROM opportunity_scores os
             JOIN product_archetypes pa ON pa.id=os.archetype_id
             WHERE os.run_id=%s
-            ORDER BY os.opportunity_score DESC,pa.member_count DESC
+            ORDER BY COALESCE(os.final_score,os.opportunity_score) DESC,
+                     os.opportunity_score DESC,pa.member_count DESC
             LIMIT 1
             """,
             (run_id,),
@@ -127,22 +142,28 @@ def _retail_evidence(run_id: str, archetype_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
 
-def _supplier_evidence(run_id: str) -> list[dict[str, Any]]:
+def _supplier_evidence(
+    run_id: str,
+    archetype_id: int,
+) -> list[dict[str, Any]]:
     with connect() as conn:
         return conn.execute(
             """
             SELECT source,price_text,moq_text,product_title,source_url
             FROM supplier_offers
-            WHERE run_id=%s AND price_text IS NOT NULL
+            WHERE run_id=%s
+              AND archetype_id=%s
+              AND price_text IS NOT NULL
             ORDER BY source,id
             """,
-            (run_id,),
+            (run_id, archetype_id),
         ).fetchall()
 def calculate_preliminary_economics(
     run_id: str,
     dataset_key: str,
+    archetype_id: int | None = None,
 ) -> dict[str, Any]:
-    top = _top_archetype(run_id)
+    top = _top_archetype(run_id, archetype_id)
     if not top:
         return {
             "status": "insufficient_data",
@@ -150,7 +171,7 @@ def calculate_preliminary_economics(
         }
 
     retail_rows = _retail_evidence(run_id, int(top["id"]))
-    supplier_rows = _supplier_evidence(run_id)
+    supplier_rows = _supplier_evidence(run_id, int(top["id"]))
 
     retail_parsed: list[tuple[float, float, dict[str, Any]]] = []
     for row in retail_rows:
@@ -178,6 +199,12 @@ def calculate_preliminary_economics(
     retail_max = max(retail_values) if retail_values else None
     supplier_min = statistics.median(supplier_lows) if supplier_lows else None
     supplier_max = statistics.median(supplier_highs) if supplier_highs else None
+    if (
+        supplier_min is not None
+        and supplier_max is not None
+        and supplier_min > supplier_max
+    ):
+        supplier_min, supplier_max = supplier_max, supplier_min
 
     status = "insufficient_data"
     if retail_min is not None and supplier_min is not None:
@@ -214,7 +241,7 @@ def calculate_preliminary_economics(
     }
 
     if not retail_values:
-        notes["retail_issue"] = "No comparable RUB retail price for TOP-1 archetype."
+        notes["retail_issue"] = "No comparable RUB retail price for this archetype."
     if not supplier_lows:
         if dataset_key == "led":
             notes["supplier_issue"] = (
@@ -329,3 +356,42 @@ def get_economics(run_id: str) -> list[dict[str, Any]]:
             """,
             (run_id,),
         ).fetchall()
+
+def calculate_all_preliminary_economics(
+    run_id: str,
+    dataset_key: str,
+    limit: int = 5,
+) -> dict[str, Any]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT pa.id
+            FROM opportunity_scores os
+            JOIN product_archetypes pa ON pa.id=os.archetype_id
+            WHERE os.run_id=%s
+            ORDER BY COALESCE(os.final_score,os.opportunity_score) DESC,
+                     os.opportunity_score DESC,
+                     pa.member_count DESC
+            LIMIT %s
+            """,
+            (run_id, limit),
+        ).fetchall()
+
+    items = [
+        calculate_preliminary_economics(
+            run_id,
+            dataset_key,
+            int(row["id"]),
+        )
+        for row in rows
+    ]
+
+    return {
+        "count": len(items),
+        "ready": sum(1 for item in items if item.get("status") == "ready"),
+        "partial": sum(1 for item in items if item.get("status") == "partial"),
+        "insufficient": sum(
+            1 for item in items if item.get("status") == "insufficient_data"
+        ),
+        "items": items,
+    }
