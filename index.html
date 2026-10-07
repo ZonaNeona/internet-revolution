@@ -177,7 +177,7 @@
         <div>
           <span class="eyebrow">PRODUCT HUNTER REPORT</span>
           <h1>TOP‑5 товарных возможностей</h1>
-          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">market + scoring + suppliers — LIVE · economics — modelled</span></p>
+          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">market + scoring + suppliers — LIVE · economics — LIVE inputs / assumptions</span></p>
         </div>
         <div class="result-summary">
           <div><span>Исследовано</span><strong id="sumRecords">214</strong><small>product records</small></div>
@@ -198,7 +198,7 @@
 
       <div class="method-note">
         <i data-lucide="shield-check"></i>
-        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts, нормализация, товарные архетипы, Opportunity Score и Supplier Probe уже строятся из реальных web-search records. Modelled остаётся только preliminary economics.</p></div>
+        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts, нормализация, товарные архетипы, Opportunity Score и Supplier Probe уже строятся из реальных web-search records. Preliminary economics использует live retail/supplier evidence, но комиссии, реклама, возвраты, логистика и FX пока задаются версионированными assumptions.</p></div>
       </div>
     </div>
   </section>
@@ -239,7 +239,7 @@
         </article>
 
         <article class="panel economics-card">
-          <div class="panel-head"><div><span class="eyebrow">PRELIMINARY ECONOMICS</span><h2>Модельная экономика</h2></div><span class="modelled-label">не бухгалтерский расчёт</span></div>
+          <div class="panel-head"><div><span class="eyebrow">PRELIMINARY ECONOMICS</span><h2>Предварительная экономика</h2></div><span class="modelled-label">LIVE inputs · assumptions_v1</span></div>
           <div class="econ-main"><span>Оценочная маржа</span><strong id="marginRange">31–38%</strong><small>при типовой логистике и рекламной доле</small></div>
           <div class="econ-list">
             <div><span>Розничный диапазон РФ</span><b id="retailRange">₽8 500–11 500</b></div>
@@ -265,7 +265,7 @@
   <header><div class="drawer-brand"><span><i data-lucide="bot"></i></span><div><strong>Hermes</strong><small><i></i> контекст Product Hunter</small></div></div><button id="drawerClose"><i data-lucide="x"></i></button></header>
   <div class="drawer-context" id="drawerContext"><i data-lucide="database"></i><span>Контекст: новый поиск</span></div>
   <div class="chat" id="chat">
-    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: запускаю LIVE Market Scouts, нормализую товары, строю архетипы, считаю Opportunity Score и ищу поставщиков. Modelled пока остаётся только preliminary economics.</p></div></div>
+    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: запускаю LIVE Market Scouts, нормализую товары, строю архетипы, считаю Opportunity Score, ищу поставщиков и запускаю preliminary economics. Экономика использует live inputs и явно помеченные assumptions.</p></div></div>
   </div>
   <div class="suggestions" id="suggestions"></div>
   <form class="composer" id="chatForm"><textarea id="chatInput" rows="1" placeholder="Спросите про сигналы, рынки или поставщиков…"></textarea><button><i data-lucide="arrow-up"></i></button></form>
@@ -273,6 +273,6 @@
 </aside>
 
 <div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
-<script src="/app.js?v=23"></script>
+<script src="/app.js?v=25"></script>
 </body>
 </html>
