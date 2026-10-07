@@ -11,6 +11,7 @@ from psycopg.types.json import Jsonb
 
 from .db import connect
 from .fixtures import DATASETS, STAGES, dataset_key_for, initial_scouts, initial_stats
+from .market_scout import live_evidence
 
 app = FastAPI(title="Product Hunter API", version="0.2.0", docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
 
@@ -23,7 +24,7 @@ def _public_run(row: dict, events: list[dict] | None = None) -> dict:
     if not row:
         raise HTTPException(status_code=404, detail="Research run not found")
     item = dict(row)
-    for key in ("budget_usd", "estimated_cost_usd"):
+    for key in ("budget_usd", "estimated_cost_usd", "actual_cost_usd"):
         if isinstance(item.get(key), Decimal):
             item[key] = float(item[key])
     if events is not None:
@@ -144,6 +145,15 @@ def get_research(run_id: uuid.UUID):
     return _public_run(row, events)
 
 
+@app.get("/api/research/{run_id}/live-evidence")
+def get_live_evidence(run_id: uuid.UUID):
+    rid = str(run_id)
+    with connect() as conn:
+        if not _get_run(conn, rid):
+            raise HTTPException(status_code=404, detail="Research run not found")
+    return jsonable_encoder(live_evidence(rid))
+
+
 @app.get("/api/research/{run_id}/events")
 def get_events(run_id: uuid.UUID, limit: int = Query(default=60, ge=1, le=200)):
     with connect() as conn:
@@ -163,15 +173,20 @@ def skip_research(run_id: uuid.UUID):
         dataset = DATASETS[run["dataset_key"]]
         final_stats = dict(dataset["stats"])
         final_scouts = {
-            name: {"status": "done", **values}
+            name: {"status": "done", "source": "fixture", **values}
             for name, values in dataset["scouts"].items()
         }
+        current_scouts = run.get("scouts") or {}
+        if (current_scouts.get("amazon") or {}).get("source") == "live":
+            final_scouts["amazon"] = current_scouts["amazon"]
+        actual_cost = float(run.get("actual_cost_usd") or 0)
         final_stage = STAGES[-1]
         conn.execute(
             """
             UPDATE research_runs
             SET status='completed',stage_index=%s,stage_key=%s,stage_title=%s,
                 stage_description=%s,progress=100,estimated_cost_usd=%s,
+                actual_cost_usd=%s,
                 stats=%s,scouts=%s,result_summary=%s,
                 completed_at=now(),updated_at=now(),error=NULL
             WHERE id=%s
@@ -181,7 +196,8 @@ def skip_research(run_id: uuid.UUID):
                 final_stage["key"],
                 final_stage["title"],
                 final_stage["description"],
-                dataset["cost"],
+                actual_cost,
+                actual_cost,
                 Jsonb(final_stats),
                 Jsonb(final_scouts),
                 Jsonb({"ready": True, "dataset_key": run["dataset_key"]}),
