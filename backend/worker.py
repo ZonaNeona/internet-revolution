@@ -6,10 +6,11 @@ import traceback
 from psycopg.types.json import Jsonb
 
 from backend.db import connect
-from backend.economics import calculate_preliminary_economics
+from backend.economics import calculate_all_preliminary_economics
 from backend.fixtures import DATASETS, STAGES, initial_scouts, initial_stats
 from backend.market_scout import _model as scout_model, run_live_market_scouts
 from backend.normalizer import build_archetypes, normalize_run
+from backend.ranking import rank_final_opportunities
 from backend.supplier_scout import run_live_supplier_probe
 
 POLL_SECONDS = 0.20
@@ -309,11 +310,31 @@ def process_job(job: dict):
 
     if stage_index == 6:
         try:
-            economics_result = calculate_preliminary_economics(rid, dataset_key)
+            economics_result = calculate_all_preliminary_economics(
+                rid,
+                dataset_key,
+                limit=5,
+            )
         except Exception as exc:
             economics_result = {
-                "status": "insufficient_data",
-                "reason": f"{type(exc).__name__}: {exc}",
+                "count": 0,
+                "ready": 0,
+                "partial": 0,
+                "insufficient": 0,
+                "items": [],
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+
+    final_ranking: dict[str, object] = {}
+    if stage_index == 7:
+        try:
+            final_ranking = rank_final_opportunities(rid)
+        except Exception as exc:
+            final_ranking = {
+                "count": 0,
+                "items": [],
+                "top": None,
+                "error": f"{type(exc).__name__}: {exc}",
             }
 
     market_cost, live_calls, live_records = live_totals(rid)
@@ -369,16 +390,11 @@ def process_job(job: dict):
             + " scored"
         )
     elif stage_index == 5 and supplier_probe.get("enabled"):
-        sources = supplier_probe.get("sources") or {}
-        source_parts = []
-        for source in ("alibaba", "made_in_china"):
-            item = sources.get(source) or {}
-            if item.get("enabled"):
-                source_parts.append(source + " " + str(item.get("records", 0)))
+        archetype_summaries = supplier_probe.get("archetypes") or []
         event_text = (
             "probe_suppliers LIVE → "
-            + ", ".join(source_parts)
-            + " · "
+            + str(len(archetype_summaries))
+            + " archetypes · "
             + str(supplier_calls)
             + " search calls · "
             + str(supplier_records)
@@ -386,28 +402,29 @@ def process_job(job: dict):
             + format(supplier_cost, ".4f")
         )
     elif stage_index == 6 and economics_result:
-        econ_status = str(economics_result.get("status") or "insufficient_data")
-        if econ_status in ("ready", "partial"):
-            margin_min = economics_result.get("contribution_margin_min")
-            margin_max = economics_result.get("contribution_margin_max")
-            event_text = (
-                "economics "
-                + econ_status.upper()
-                + " → contribution margin "
-                + format(float(margin_min), ".1f")
-                + "…"
-                + format(float(margin_max), ".1f")
-                + "%"
-            )
-        else:
-            notes = economics_result.get("notes") or {}
-            reason = (
-                notes.get("retail_issue")
-                or notes.get("supplier_issue")
-                or economics_result.get("reason")
-                or "not enough comparable evidence"
-            )
-            event_text = "economics SAFE → insufficient_data · " + str(reason)
+        event_text = (
+            "economics V1 → "
+            + str(economics_result.get("ready", 0))
+            + " READY · "
+            + str(economics_result.get("partial", 0))
+            + " PARTIAL · "
+            + str(economics_result.get("insufficient", 0))
+            + " INSUFFICIENT"
+        )
+        if economics_result.get("error"):
+            event_text += " · " + str(economics_result.get("error"))
+    elif stage_index == 7 and final_ranking:
+        top = final_ranking.get("top") or {}
+        event_text = (
+            "final_rank V1 → "
+            + str(final_ranking.get("count", 0))
+            + " opportunities · TOP "
+            + str(top.get("label") or "—")
+            + " · "
+            + str(top.get("decision") or "WATCH")
+            + " · score "
+            + str(top.get("final_score") or "—")
+        )
 
     completed = stage_index == len(STAGES) - 1
 
