@@ -101,3 +101,4 @@ body{overflow-x:hidden}button,input,textarea{font:inherit}button{color:inherit}.
 .opp-card.live-derived:hover{border-color:#3b6a54}
 .evidence-grid a.evidence-item{text-decoration:none;color:inherit}
 .evidence-grid a.evidence-item:hover{border-color:#345d4b}
+.supplier-table a{color:#b9d8cb;text-decoration:none}.supplier-table a:hover{color:#76dfaf;text-decoration:underline}
