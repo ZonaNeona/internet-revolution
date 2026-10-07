@@ -515,3 +515,110 @@ def supplier_search(
         usage=usage,
         cost_usd=cost,
     )
+
+def supplier_fetch(
+    *,
+    url: str,
+    source: str,
+    allowed_domains: list[str],
+    timeout: int = 60,
+    engine: str = "openrouter",
+) -> SupplierSearchResult:
+    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    model = os.environ.get(
+        "PRODUCT_HUNTER_SCOUT_MODEL",
+        "qwen/qwen3-30b-a3b-instruct-2507",
+    ).strip()
+
+    if not api_key:
+        raise OpenRouterError("OPENROUTER_API_KEY is not configured")
+
+    body = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a sourcing data extractor. Fetch the exact supplier page the user gives you. "
+                    "Extract only fields visible on that page. Never invent price, MOQ, lead time, "
+                    "customization or supplier name. Use null when unavailable. Return JSON schema only."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Supplier source: {source}. Fetch this exact URL and extract one supplier offer: {url}"
+                ),
+            },
+        ],
+        "tools": [
+            {
+                "type": "openrouter:web_fetch",
+                "parameters": {
+                    "engine": engine,
+                    "max_content_tokens": 12000,
+                    "allowed_domains": allowed_domains,
+                },
+            }
+        ],
+        "tool_choice": "required",
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "supplier_fetch_result",
+                "strict": True,
+                "schema": SUPPLIER_SCHEMA,
+            },
+        },
+        "temperature": 0.0,
+        "max_tokens": 1400,
+        "usage": {"include": True},
+    }
+
+    request = urllib.request.Request(
+        f"{base_url}/chat/completions",
+        method="POST",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "HTTP-Referer": "https://product-hunter.shvarev-demo.ru",
+            "X-Title": "Product Hunter Supplier Fetch",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:2000]
+        raise OpenRouterError(f"OpenRouter HTTP {exc.code}: {detail}") from exc
+    except Exception as exc:
+        raise OpenRouterError(f"OpenRouter request failed: {exc}") from exc
+
+    choices = payload.get("choices") or []
+    if not choices:
+        raise OpenRouterError(f"OpenRouter response has no choices: {str(payload)[:1000]}")
+
+    message = choices[0].get("message") or {}
+    usage = payload.get("usage") or {}
+    cost = Decimal(str(usage.get("cost") or 0))
+    annotations = message.get("annotations") or []
+
+    try:
+        parsed = _json_content(message.get("content") or "")
+    except OpenRouterError as exc:
+        raise OpenRouterError(str(exc), cost_usd=cost, usage=usage) from exc
+
+    raw_offers = parsed.get("offers") or []
+    offers = [item for item in raw_offers if isinstance(item, dict)]
+
+    return SupplierSearchResult(
+        payload=payload,
+        offers=offers,
+        annotations=annotations,
+        usage=usage,
+        cost_usd=cost,
+    )
