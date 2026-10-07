@@ -1,734 +1,788 @@
-# Product Hunter — план реализации
+# Product Hunter — план реализации v2
 
-## 1. Цель проекта
+## 1. Что строим
 
-Собрать рабочий демонстрационный **Product Hunter** под задачу международного e-commerce:
+Product Hunter — система поиска перспективных товаров для запуска на маркетплейсах.
 
-> пользователь задаёт критерии поиска → система исследует рынок → находит товарные возможности → доказывает их данными → анализирует конкурентов и отзывы → считает экономику → ищет поставщиков → формирует итоговую рекомендацию → передаёт человеку только решения, которые нельзя безопасно автоматизировать.
+Главная задача системы:
 
-Проект не должен превращаться в универсальную панель e-commerce. В фокусе только один глубокий end-to-end процесс — **поиск и проверка товарной возможности**.
+> пользователь вводит категорию или конкретный товар → Product Hunter исследует несколько рынков → находит повторяющиеся товарные архетипы и рыночные сигналы → ищет недооценённые cross-market возможности → проверяет доступность производства в Китае → считает предварительную экономику → возвращает TOP-5 товаров с обоснованием и TOP-5 поставщиков.
 
-Публичный стенд: `product-hunter.shvarev-demo.ru`
+Публичный стенд: `product-hunter.shvarev-demo.ru`.
 
----
-
-## 2. Принципы реализации
-
-### 2.1. AI только там, где он действительно нужен
-
-Детерминированно, обычным Python:
-
-- сбор и нормализация структурированных данных;
-- цены, рейтинги, число отзывов и прочие числовые показатели;
-- дедупликация;
-- фильтры;
-- unit economics;
-- sensitivity analysis;
-- scoring по формализованным правилам;
-- хранение состояния workflow;
-- журналирование и audit trail.
-
-LLM / VLM:
-
-- смысловая группировка товаров и аналогов;
-- анализ отзывов;
-- выделение повторяющихся болей покупателей;
-- оценка возможной продуктовой дифференциации;
-- обработка слабоструктурированных страниц поставщиков;
-- подготовка RFQ;
-- объяснение итоговой рекомендации.
-
-### 2.2. Hermes — оркестратор, а не бизнес-логика
-
-Hermes не должен сам считать маржу, придумывать цифры или хранить состояние исследования в промпте.
-
-Его роль:
-
-1. понять задачу пользователя;
-2. построить или продолжить план исследования;
-3. вызвать нужный инструмент;
-4. дождаться результата фоновой задачи;
-5. решить, какой следующий инструмент нужен;
-6. объяснить результат человеку;
-7. запросить human approval там, где это необходимо.
-
-Все факты и расчёты приходят в Hermes из Product Hunter API / tools.
-
-### 2.3. Evidence-first
-
-Любой значимый вывод должен иметь источник:
-
-- товар;
-- листинг;
-- отзыв или агрегат отзывов;
-- временной ряд;
-- найденный поставщик;
-- коммерческое предложение;
-- формулу расчёта.
-
-Из интерфейса пользователь должен иметь возможность перейти от вывода к доказательствам.
-
-### 2.4. Human-in-the-loop
-
-Система автоматизирует исследование, но не принимает необратимые бизнес-решения.
-
-Человек подтверждает, например:
-
-- переход товара в следующий этап;
-- изменение обязательных критериев;
-- отправку запроса поставщику;
-- выбор поставщика;
-- финальное решение о тестовом запуске.
+Проект сознательно НЕ является общей BI-панелью, ERP, рекламным кабинетом или системой управления действующими SKU.
 
 ---
 
-# 3. Golden Path демо
+# 2. Основной UX
 
-Основной демонстрационный сценарий:
+Первый экран почти пустой:
 
-1. Пользователь создаёт исследование.
-2. Указывает рынок, маркетплейс, категорию, ценовой диапазон, минимальную маржу, бюджет первой партии и ограничения.
-3. Product Hunter запускает сбор рынка.
-4. Система формирует список товарных кластеров.
-5. Первичные фильтры отсеивают слабые варианты.
-6. Для лучших кандидатов проводится глубокий анализ конкурентов.
-7. Анализируются отзывы покупателей.
-8. Формируются Product Gaps — реальные повторяющиеся проблемы, которые можно исправить в новом товаре.
-9. Строится предварительная unit economics.
-10. Для перспективных кандидатов запускается Supplier Scout.
-11. После появления закупочных цен экономика пересчитывается.
-12. Hermes формирует итоговую рекомендацию:
-   - GO;
-   - TEST;
-   - NO-GO.
-13. Пользователь видит причины, риски, confidence и список решений, которые остаются за человеком.
+**Что будем исследовать?**
 
-Демо должно проходиться за 3–5 минут, но каждый этап должен позволять провалиться в доказательства и расчёты.
+Пользователь может:
+
+1. ввести категорию;
+2. ввести название конкретного товара;
+3. выбрать один из demo-примеров.
+
+Demo-категории:
+
+- Вертикальные пылесосы;
+- Коврики для ванной;
+- Светодиодные ленты.
+
+Demo-конкретные товары:
+
+- беспроводной пылесос со складной трубой;
+- быстросохнущий каменный коврик для ванной;
+- RGBIC светодиодная лента с Matter;
+- аккумуляторный мини-пылесос для авто.
+
+После запуска пользователь видит не готовый dashboard, а **ход исследования**.
 
 ---
 
-# 4. Целевая архитектура
+# 3. Golden Path
 
 ```text
-                     Product Hunter UI
-                            |
-                    Product Hunter API
-                            |
-          +-----------------+-----------------+
-          |                 |                 |
-     Domain Logic       Job Manager       Evidence Layer
-          |                 |                 |
-          +-----------------+-----------------+
-                            |
-                        PostgreSQL
-                            |
-          +-----------------+-----------------+
-          |                 |                 |
-   Market Collectors     AI Workers      Supplier Tools
-          |                 |                 |
-   APIs / Browser       LLM / VLM        Search / RFQ
-          |                 |                 |
-          +-----------------+-----------------+
-                            |
-                          Hermes
-                       Orchestrator
-                            |
-                    Contextual Copilot
+Запрос пользователя
+        ↓
+Intent + category resolution
+        ↓
+Query expansion
+        ↓
+Market Scouts
+ WB / Ozon / Amazon / Lazada
+        ↓
+Search results + доступные public pages
+        ↓
+Normalization / deduplication
+        ↓
+Product archetypes
+        ↓
+Market Signal + Cross-market Signal
+        ↓
+TOP-20 кандидатов
+        ↓
+Supplier Probe
+ Alibaba / Made-in-China
+        ↓
+Preliminary Economics
+        ↓
+TOP-5 Opportunities
+        ↓
+Deep Supplier Search
+        ↓
+TOP-5 Suppliers per opportunity
+        ↓
+Recommendation + evidence
 ```
 
-### Важное архитектурное правило
-
-**Hermes общается с Product Hunter через стабильный набор tools/API.**
-
-Он не должен напрямую писать в таблицы PostgreSQL и не должен содержать формулы бизнес-расчётов внутри системного промпта.
+Целевое время demo-run: 1–3 минуты.
 
 ---
 
-# 5. Основные сущности данных
+# 4. Исходные ограничения
 
-Минимальная модель:
+У проекта нет платного доступа к:
 
-- `research_runs` — исследования;
-- `research_criteria` — входные критерии;
-- `marketplaces` — рынки и площадки;
-- `products` — нормализованные товары;
-- `listings` — конкретные листинги;
-- `market_observations` — цена, рейтинг, отзывы и прочие наблюдения во времени;
-- `product_clusters` — смысловые группы товаров;
-- `opportunities` — кандидаты Product Hunter;
-- `competitor_sets` — выбранные аналоги;
-- `reviews` — отзывы или нормализованные записи;
-- `review_clusters` — темы и боли покупателей;
-- `product_gaps` — найденные возможности улучшения продукта;
-- `economics_scenarios` — расчёты экономики;
-- `suppliers` — поставщики;
-- `supplier_quotes` — предложения;
-- `evidence_items` — доказательства выводов;
-- `jobs` — фоновые задачи;
-- `agent_runs` — действия Hermes / AI workers;
-- `approvals` — решения пользователя;
-- `audit_log` — история операций.
+- MPStats;
+- Keepa;
+- внутренней статистике WB/Ozon/Amazon;
+- коммерческим marketplace datasets.
 
----
+Поэтому V1 строится на:
 
-# 6. Этапы реализации
+- OpenRouter models;
+- OpenRouter web search / web fetch или эквивалентных web tools;
+- доступных публичных страницах;
+- search engine snippets;
+- собственной нормализации и индексах;
+- fixture-данных там, где реальную статистику получить нельзя.
 
-## Этап 0. Фундамент проекта
+## Ключевой принцип
 
-### Задача
+**Мы не выдаём модельные оценки за реальные продажи.**
 
-Перевести текущий прототип в отдельный проект с понятной границей ответственности.
+Если система не знает продажи, UI не показывает выдуманное значение “18 432 продаж”.
 
-### Сделать
+Вместо этого используются:
 
-- подключить репозиторий `ZonaNeona/internet-revolution`;
-- перенести исходники текущего `product-hunter.shvarev-demo.ru`;
-- оставить в UI только Product Hunter;
-- убрать Markets, Launch, Operations и остальные широкие разделы;
-- создать структуру frontend / backend / docs;
-- завести конфигурацию окружений без секретов в Git;
-- описать локальный и серверный запуск.
+- Market Signal;
+- Cross-market Signal;
+- Search Presence;
+- Review Mass;
+- Offer Density;
+- Feature Recurrence;
+- Russia Gap;
+- Supplier Availability;
+- modelled demand / momentum.
 
-### Результат
-
-Один репозиторий = один Product Hunter.
-
-### Критерий готовности
-
-Публичный стенд работает из кода этого репозитория, а UI больше не изображает универсальную commerce-платформу.
+Все модельные показатели должны быть помечены как **оценка Product Hunter**.
 
 ---
 
-## Этап 1. UX исследования и глубокая карточка Opportunity
+# 5. Роль web agents
 
-### Задача
+Web agents — это разведчики, а не источник точной коммерческой статистики.
 
-Сначала построить полный пользовательский путь на качественных demo fixtures, не смешивая разработку интерфейса с интеграцией источников.
+Они используются для:
 
-### Экран «Исследования»
+- поиска карточек товаров;
+- поиска цен;
+- рейтингов и числа отзывов, когда они видимы;
+- характеристик;
+- брендов и продавцов;
+- поиска похожих товаров;
+- поиска обзоров и обсуждений;
+- поиска supplier listings;
+- поиска OEM/ODM производителей;
+- извлечения MOQ, цены, lead time и customization, если данные публичны.
 
-Показывает:
+Они НЕ должны:
 
-- название исследования;
-- рынок;
-- маркетплейс;
-- категорию;
-- критерии;
-- статус;
-- прогресс;
-- число найденных возможностей.
+- придумывать продажи;
+- делать вид, что имеют внутренние marketplace API;
+- обходить защиту сайтов;
+- бесконечно сканировать маркетплейс.
 
-### Создание исследования
+---
 
-Поля:
+# 6. Market Scouts
 
-- страна / рынок;
-- marketplace;
-- категория;
-- ценовой диапазон;
-- минимальная маржа;
-- бюджет первой партии;
-- максимальный MOQ;
-- ограничения / исключения.
+Для каждой категории Hermes создаёт набор поисковых гипотез.
 
-### Экран Product Hunter
+Пример:
 
-Таблица возможностей:
+`Вертикальные пылесосы`
 
-- товар;
-- Opportunity Score;
-- спрос;
-- динамика;
+может быть раскрыт в:
+
+- беспроводной вертикальный пылесос;
+- вертикальный пылесос складная труба;
+- пылесос с LED-подсветкой;
+- пылесос для шерсти животных;
+- cordless stick vacuum;
+- bendable stick vacuum;
+- wet dry vacuum;
+- green LED vacuum;
+- pet hair cordless vacuum.
+
+После этого параллельно работают четыре scout-а:
+
+- WB Scout;
+- Ozon Scout;
+- Amazon Scout;
+- Lazada Scout.
+
+Каждый scout:
+
+1. получает query set;
+2. ищет результаты только по своему рынку;
+3. возвращает structured records;
+4. останавливается, когда перестаёт находить новые типы товаров или исчерпан budget.
+
+---
+
+# 7. Структура raw product record
+
+Минимальный normalized record:
+
+```json
+{
+  "market": "amazon",
+  "source_url": "...",
+  "title": "...",
+  "brand": "...",
+  "price": 49.99,
+  "currency": "EUR",
+  "rating": 4.4,
+  "review_count": 1832,
+  "seller": "...",
+  "features": {
+    "power_w": 500,
+    "battery_min": 55,
+    "foldable_tube": true,
+    "green_led": true,
+    "pet_brush": true,
+    "wet_cleaning": false
+  },
+  "source_quality": 0.82,
+  "fetched_at": "..."
+}
+```
+
+Поля могут быть null.
+
+Каждое значение должно знать свой source/evidence.
+
+---
+
+# 8. Product Archetypes
+
+Product Hunter ранжирует не отдельные branded SKU, а **товарные архетипы**.
+
+Пример:
+
+не:
+
+> Dyson V15 Detect
+
+а:
+
+> беспроводной вертикальный пылесос 450–550 Вт, складная труба, LED-подсветка, pet brush, floor dock.
+
+Pipeline:
+
+1. очистка названий;
+2. нормализация характеристик;
+3. embeddings;
+4. semantic clustering;
+5. LLM label generation;
+6. deterministic validation.
+
+Из 1 000–3 000 search results целимся получить порядка 30–60 архетипов.
+
+---
+
+# 9. Сигналы V1
+
+## 9.1 Search Presence
+
+Насколько часто архетип встречается:
+
+- в разных поисковых запросах;
+- у разных продавцов;
+- на разных площадках.
+
+## 9.2 Review Mass
+
+Суммарная масса отзывов у наиболее близких представителей.
+
+Не эквивалент продажам, но полезна как proxy зрелости спроса.
+
+## 9.3 Offer Density
+
+Число независимых предложений / брендов / продавцов.
+
+## 9.4 Feature Recurrence
+
+Как часто конкретный feature повторяется у сильных представителей.
+
+## 9.5 Cross-market Presence
+
+На скольких рынках архетип имеет устойчивый signal.
+
+## 9.6 Russia Gap
+
+Сильный зарубежный signal + сравнительно слабое предложение WB/Ozon.
+
+## 9.7 Supplier Availability
+
+Можно ли найти OEM/ODM-предложения с похожей спецификацией.
+
+---
+
+# 10. Trend Transfer V1
+
+Главная фишка Product Hunter.
+
+V1 не утверждает, что знает исторические продажи.
+
+Вместо этого система ищет:
+
+> товарный архетип уже широко представлен / активно обсуждается на зарубежных рынках, но на WB/Ozon предложение заметно слабее.
+
+Пример:
+
+```text
+Amazon signal     92
+Lazada signal     78
+WB signal         34
+Ozon signal       41
+Russia Gap        89
+Trend Transfer    91
+```
+
+Это **cross-sectional signal**, а не доказанная временная корреляция.
+
+---
+
+# 11. Trend Transfer V2
+
+Когда накопится собственная история запусков исследований:
+
+- сохранять market snapshots;
+- строить временные ряды;
+- считать momentum;
+- считать acceleration;
+- изучать lead/lag между рынками;
+- обучать transfer model на истории.
+
+Только после накопления данных можно утверждать:
+
+> сигнал на рынке A исторически предшествует росту на рынке B на N недель.
+
+---
+
+# 12. Ranking
+
+Первичный Market Score считается до поиска поставщиков.
+
+Пример состава:
+
+- Search Presence;
+- Cross-market Presence;
+- Russia Gap;
+- Review Mass;
+- Competition / Offer Density;
+- Feature Recurrence.
+
+Далее выбирается TOP-20.
+
+После Supplier Probe добавляются:
+
+- Supplier Availability;
+- preliminary margin;
+- sourcing complexity;
+- MOQ fit.
+
+Финальный Opportunity Score V1 концептуально:
+
+- 25% demand proxies;
+- 20% cross-market / trend transfer;
+- 20% Russia Gap;
+- 15% competition;
+- 10% preliminary economics;
+- 10% supplier availability.
+
+Формула должна быть версионируемой и объяснимой.
+
+---
+
+# 13. Supplier Probe
+
+Для TOP-20 запускается дешёвый быстрый поиск поставщиков.
+
+Источники V1:
+
+- Alibaba;
+- Made-in-China.
+
+Цель Probe:
+
+- понять, производится ли похожий товар;
+- получить ориентир цены;
+- MOQ;
+- lead time;
+- customization;
+- наличие OEM/ODM.
+
+На этом этапе не нужен exhaustive sourcing.
+
+---
+
+# 14. Deep Supplier Search
+
+После preliminary economics остаётся TOP-5 возможностей.
+
+Для каждой из них система:
+
+1. расширяет supplier queries;
+2. собирает больше supplier pages;
+3. нормализует компании;
+4. удаляет дубликаты;
+5. сопоставляет спецификации;
+6. считает Supplier Score;
+7. возвращает TOP-5 поставщиков.
+
+Для сравнения товара с supplier listing используются:
+
+- normalized features;
+- text embeddings;
+- при необходимости VLM по изображениям.
+
+---
+
+# 15. Preliminary Economics
+
+Система использует:
+
+- наблюдаемую retail price;
+- supplier price range;
+- modelled logistics;
+- modelled marketplace fee;
+- modelled ad spend;
+- modelled returns.
+
+Если комиссии/логистика не получены из источника, UI показывает:
+
+> модельное допущение.
+
+Экономика V1 нужна для **ранжирования**, а не для бухгалтерской точности.
+
+---
+
+# 16. Hermes
+
+Hermes — оркестратор research run.
+
+Он НЕ является источником market numbers.
+
+Пример execution plan:
+
+```text
+resolve_intent
+expand_queries
+collect_wb
+collect_ozon
+collect_amazon
+collect_lazada
+normalize_products
+cluster_archetypes
+calculate_market_signals
+rank_top_20
+probe_suppliers
+calculate_preliminary_economics
+rank_top_5
+deep_supplier_search
+build_report
+```
+
+Hermes:
+
+- запускает tools;
+- контролирует budget;
+- решает, достаточно ли evidence;
+- может прекратить исследование слабого кандидата;
+- формирует explanation;
+- отвечает на вопросы пользователя поверх сохранённых данных.
+
+---
+
+# 17. Budget Guard
+
+Research run имеет лимиты:
+
+- max web searches;
+- max fetched pages;
+- max model tokens;
+- max estimated USD cost;
+- max runtime.
+
+Цель V1:
+
+**\$0.50–2 на глубокий demo-run**, в зависимости от моделей и числа доступных страниц.
+
+Пример:
+
+```text
+budget_usd = 1.50
+search_calls_used = 31 / 60
+fetches_used = 48 / 120
+estimated_cost = \$0.73
+```
+
+Если evidence достаточно — Hermes прекращает дальнейший web research.
+
+---
+
+# 18. Архитектура
+
+```text
+Product Hunter UI
+        |
+Product Hunter API
+        |
+Research Orchestrator
+        |
+      Hermes
+        |
++-------+-------+-------+-------+
+|       |       |       |       |
+WB    Ozon   Amazon  Lazada  Supplier
+Scout Scout   Scout   Scout   Scouts
+|       |       |       |       |
++-------+-------+-------+-------+
+        |
+Raw Evidence Store
+        |
+Normalizer
+        |
+Archetype Engine
+        |
+Signal Calculator
+        |
+TOP-20
+        |
+Supplier Probe
+        |
+Economics
+        |
+TOP-5
+        |
+Deep Supplier Search
+        |
+Decision Report
+```
+
+---
+
+# 19. Хранилище
+
+Основные сущности:
+
+- research_runs;
+- research_queries;
+- search_calls;
+- source_documents;
+- raw_products;
+- normalized_products;
+- product_archetypes;
+- archetype_members;
+- market_signals;
+- opportunity_scores;
+- suppliers;
+- supplier_offers;
+- economics_scenarios;
+- evidence_items;
+- agent_runs;
+- audit_log.
+
+---
+
+# 20. Этапы реализации
+
+## Этап 0 — смена UX-концепции
+
+Сделать новый первый экран:
+
+- один search input;
+- demo-категории;
+- demo-конкретные товары;
+- запуск исследования;
+- экран выполнения pipeline;
+- экран TOP-5 результатов.
+
+Fixture-driven.
+
+### Done
+
+Пользователь вводит «Вертикальные пылесосы» и проходит весь новый Golden Path.
+
+---
+
+## Этап 1 — fixture-driven research execution
+
+Реализовать визуально:
+
+- query expansion;
+- 4 Market Scouts;
+- число найденных результатов;
+- нормализация;
+- clustering;
+- TOP-20;
+- supplier probe;
+- preliminary economics;
+- TOP-5.
+
+Никаких ложных “реальных продаж”.
+
+---
+
+## Этап 2 — глубокий TOP-5 UX
+
+Для каждого результата:
+
+- описание архетипа;
+- почему он перспективен;
+- четыре market signals;
+- Trend Transfer;
+- Russia Gap;
 - конкуренция;
-- целевая цена;
-- предварительная маржа;
-- риск;
-- рекомендация.
-
-### Глубокая карточка товара
-
-Вкладки:
-
-1. Обзор
-2. Рынок
-3. Конкуренты
-4. Отзывы
-5. Экономика
-6. Поставщики
-7. Решение
-
-### Критерий готовности
-
-На fixture-данных полностью проходится Golden Path и все числа имеют drill-down.
+- preliminary economics;
+- TOP-5 suppliers;
+- evidence.
 
 ---
 
-## Этап 2. Backend и workflow engine
+## Этап 3 — backend + PostgreSQL + jobs
 
-### Задача
-
-Перевести Product Hunter из статического прототипа в stateful-приложение.
-
-### Сделать
-
-- FastAPI backend;
+- FastAPI;
 - PostgreSQL;
-- миграции схемы;
-- API исследований;
-- API opportunities;
-- job state machine;
+- migrations;
+- research state machine;
+- background worker;
 - progress events;
-- retry / error state;
-- audit log.
+- retry;
+- audit.
 
-На первом этапе отдельный Redis не обязателен: очередь можно реализовать через PostgreSQL и отдельный worker, чтобы не раздувать инфраструктуру VPS.
+---
 
-### Пример pipeline
+## Этап 4 — OpenRouter Research Tools
+
+Сделать tools:
+
+- search_market;
+- fetch_source;
+- extract_product;
+- expand_queries;
+- search_suppliers;
+- fetch_supplier.
+
+Включить:
+
+- domain filters;
+- max result limits;
+- retries;
+- cache;
+- budget guard.
+
+---
+
+## Этап 5 — Product Normalizer
+
+- canonical title;
+- currency normalization;
+- brand normalization;
+- feature extraction;
+- unit normalization;
+- deduplication;
+- evidence links.
+
+---
+
+## Этап 6 — Archetype Engine
+
+- embeddings;
+- semantic clustering;
+- deterministic feature checks;
+- archetype naming;
+- member confidence.
+
+---
+
+## Этап 7 — Signal Engine
+
+Считать V1:
+
+- Search Presence;
+- Review Mass;
+- Offer Density;
+- Feature Recurrence;
+- Cross-market Presence;
+- Russia Gap;
+- Trend Transfer;
+- Supplier Availability.
+
+---
+
+## Этап 8 — Supplier Pipeline
+
+- supplier query generation;
+- Alibaba scout;
+- Made-in-China scout;
+- normalization;
+- supplier matching;
+- Supplier Score;
+- preliminary / deep search.
+
+---
+
+## Этап 9 — Economics
+
+- retail price range;
+- supplier price;
+- assumptions;
+- preliminary margin;
+- sensitivity;
+- score impact.
+
+---
+
+## Этап 10 — Hermes Orchestration
+
+Tools:
+
+- start_research;
+- get_research_status;
+- expand_queries;
+- collect_market;
+- normalize_products;
+- cluster_archetypes;
+- calculate_signals;
+- rank_candidates;
+- probe_suppliers;
+- calculate_economics;
+- deep_supplier_search;
+- get_evidence;
+- build_report.
+
+---
+
+## Этап 11 — собственная история
+
+Каждый run сохраняет snapshots.
+
+После накопления данных:
+
+- real momentum;
+- acceleration;
+- lead/lag;
+- transfer history.
+
+---
+
+# 21. Что показываем работодателю
+
+Demo-run:
+
+**Вертикальные пылесосы**
 
 ```text
-CREATED
-  -> MARKET_COLLECTION
-  -> NORMALIZATION
-  -> CLUSTERING
-  -> INITIAL_SCREENING
-  -> REVIEW_ANALYSIS
-  -> PRELIMINARY_ECONOMICS
-  -> SUPPLIER_SEARCH
-  -> FINAL_ECONOMICS
-  -> DECISION
-  -> COMPLETED
+43 поисковых запроса
+4 рынка
+728 найденных страниц / карточек
+214 полезных product records
+37 архетипов
+20 прошли market screening
+18 имеют supplier signal
+5 финальных opportunities
 ```
 
-### Критерий готовности
+Финальный результат:
 
-Обновление страницы не теряет состояние исследования. Ошибка одного job не уничтожает весь workflow.
+### №1
+**Беспроводной пылесос со складной трубой и LED-подсветкой**
 
----
+- Market Signal 88;
+- Trend Transfer 94;
+- Russia Gap 91;
+- Supplier Availability 84;
+- preliminary margin 31–38%;
+- 17 supplier matches;
+- рекомендация TEST.
 
-## Этап 3. Market Collectors
-
-### Задача
-
-Заменить fixture-рынок реальным сбором данных.
-
-### Архитектура
-
-Каждый источник — отдельный adapter:
-
-```text
-Collector
-  fetch()
-  parse()
-  normalize()
-  evidence()
-```
-
-Варианты источников:
-
-- официальные API, где доступны;
-- публичные marketplace pages;
-- поисковая выдача;
-- внешние аналитические источники;
-- Browser automation для динамических страниц.
-
-### Обязательные поля
-
-- название;
-- цена;
-- валюта;
-- рейтинг;
-- число отзывов;
-- бренд;
-- продавец;
-- категория;
-- marketplace ID / URL;
-- доступность;
-- timestamp сбора;
-- raw evidence.
-
-### Безопасность источников
-
-- rate limiting;
-- кэш;
-- backoff;
-- лимиты запросов;
-- отдельные adapters вместо логики, размазанной по приложению.
-
-### Критерий готовности
-
-Новое исследование действительно загружает и сохраняет рыночные данные хотя бы из одного реального источника.
+Нажатие раскрывает evidence и TOP-5 suppliers.
 
 ---
 
-## Этап 4. Нормализация, кластеризация и Opportunity Score
-
-### Задача
-
-Научить систему находить не отдельные листинги, а реальные товарные возможности.
-
-### Pipeline
-
-1. Очистка названий.
-2. Нормализация валют и единиц измерения.
-3. Дедупликация.
-4. Категоризация.
-5. Embeddings для semantic similarity.
-6. Product clustering.
-7. Отсев нерелевантных аналогов.
-8. Расчёт признаков.
-9. Opportunity Score.
-
-### Score должен быть объяснимым
-
-Пример компонентов:
-
-- спрос;
-- динамика;
-- концентрация конкурентов;
-- плотность отзывов;
-- рейтинг;
-- price window;
-- рекламная насыщенность;
-- review gaps;
-- предварительная экономика;
-- риск.
-
-UI показывает не только `86/100`, но и вклад каждого фактора.
-
-### Критерий готовности
-
-Система может объяснить, почему кандидат A получил 86, а кандидат B — 64.
-
----
-
-## Этап 5. Review Intelligence
-
-### Задача
-
-Сделать анализ отзывов одной из главных демонстрационных возможностей.
-
-### Pipeline
-
-1. сбор отзывов;
-2. language detection;
-3. очистка;
-4. embeddings;
-5. тематическая кластеризация;
-6. sentiment / complaint classification;
-7. частотность;
-8. связь проблемы с конкретными конкурентами;
-9. Product Gap extraction.
-
-### UI
-
-Показывает:
-
-- сколько отзывов проанализировано;
-- что нравится покупателям;
-- основные проблемы;
-- частотность проблемы;
-- динамику;
-- товары, где она встречается;
-- примеры evidence;
-- найденные Product Gaps.
-
-### Ключевой результат
-
-Не просто:
-
-> 18% отзывов жалуются на резервуар.
-
-А:
-
-> проблема встречается у 6 из 9 основных аналогов; потенциальное улучшение — конструкция резервуара X; оценочная ценность — высокая.
-
-### Критерий готовности
-
-Каждый Product Gap можно открыть и проверить по исходным evidence.
-
----
-
-## Этап 6. Unit Economics
-
-### Задача
-
-Перевести привлекательность товара в бизнес-решение.
-
-### Формула
-
-Учитываем:
-
-- цену продажи;
-- закупку;
-- международную доставку;
-- last-mile / fulfillment;
-- пошлины;
-- marketplace fee;
-- рекламные расходы;
-- возвраты;
-- упаковку;
-- дополнительные расходы.
-
-### Интерфейс
-
-Показывает waterfall:
-
-```text
-Цена продажи
-- закупка
-- логистика
-- пошлины
-- комиссия
-- fulfillment
-- реклама
-- возвраты
-= contribution profit
-```
-
-### Sensitivity analysis
-
-Сценарии:
-
-- закупка +10%;
-- CPC +20%;
-- продажная цена -10%;
-- возвраты +X п.п.;
-- логистика +15%.
-
-### Критерий готовности
-
-Любая цифра в рекомендации связана с конкретной формулой и входными данными.
-
----
-
-## Этап 7. Supplier Scout
-
-### Задача
-
-После подтверждения рыночной возможности найти возможность физически произвести товар.
-
-### Pipeline
-
-1. поиск поставщиков;
-2. извлечение характеристик;
-3. дедупликация компаний;
-4. проверка соответствия требованиям;
-5. MOQ;
-6. цена;
-7. lead time;
-8. возможности кастомизации;
-9. supplier score;
-10. RFQ draft.
-
-### Human approval
-
-Hermes может:
-
-- выбрать поставщиков для запроса;
-- составить RFQ;
-- объяснить выбор.
-
-Но отправка RFQ — только после подтверждения пользователем.
-
-### Критерий готовности
-
-Для выбранного opportunity Product Hunter формирует shortlist поставщиков и показывает, как их цены меняют unit economics.
-
----
-
-## Этап 8. Hermes Orchestration Layer
-
-### Задача
-
-Подключить Hermes после того, как tools имеют устойчивые контракты.
-
-### Минимальный набор tools
-
-- `create_research`;
-- `get_research_status`;
-- `scan_market`;
-- `get_opportunities`;
-- `get_opportunity`;
-- `analyze_competitors`;
-- `analyze_reviews`;
-- `calculate_economics`;
-- `run_sensitivity`;
-- `search_suppliers`;
-- `prepare_rfq`;
-- `get_evidence`;
-- `request_approval`.
-
-### Что умеет Hermes
-
-Примеры:
-
-> Почему этот товар получил 86 баллов?
-
-> Пересчитай экономику при закупочной цене $9.20.
-
-> Исключи товары с MOQ больше 500.
-
-> Покажи три самых серьёзных риска.
-
-> Найди поставщиков, которые могут исправить две главные проблемы продукта.
-
-Hermes должен вызывать tools и возвращать фактический результат, а не симулировать выполнение текстом.
-
-### Критерий готовности
-
-Чат становится альтернативным интерфейсом управления тем же состоянием Product Hunter.
-
----
-
-## Этап 9. Evidence, Audit и Human Approval
-
-### Задача
-
-Сделать систему доверительной и профессиональной.
-
-### Для каждого AI-вывода сохраняем
-
-- model;
-- prompt version;
-- input references;
-- output;
-- confidence;
-- timestamp;
-- cost;
-- связанный job;
-- связанные evidence.
-
-### Approval gates
-
-Статусы:
-
-- `AUTO`;
-- `REVIEW_REQUIRED`;
-- `APPROVED`;
-- `REJECTED`.
-
-### Критерий готовности
-
-Можно восстановить, откуда взялась итоговая рекомендация и кто подтвердил действие.
-
----
-
-## Этап 10. Финальный демонстрационный polish
-
-### Главная демонстрация
-
-За 3–5 минут пользователь видит:
-
-```text
-Критерии
-  ↓
-Исследование рынка
-  ↓
-24 opportunities
-  ↓
-1 кандидат
-  ↓
-Конкуренты
-  ↓
-6 482 отзыва
-  ↓
-3 Product Gaps
-  ↓
-Unit Economics
-  ↓
-7 поставщиков
-  ↓
-TEST · confidence 82%
-  ↓
-2 решения остаются человеку
-```
-
-### Финальная карточка решения
-
-Показывает:
-
-- рекомендацию;
-- confidence;
-- причины;
-- риски;
-- экономику;
-- лучшие Product Gaps;
-- лучших поставщиков;
-- evidence coverage;
-- решения, требующие человека.
-
-### Критерий готовности
-
-Работодатель может самостоятельно пройти сценарий без объяснений разработчика и понять ценность системы.
-
----
-
-# 7. Очерёдность разработки
-
-Работаем строго по очереди:
-
-1. **Этап 0 — репозиторий и очистка текущего прототипа.**
-2. **Этап 1 — полный UX Product Hunter на fixture-данных.**
-3. Этап 2 — backend + PostgreSQL + jobs.
-4. Этап 3 — первый реальный источник данных.
-5. Этап 4 — кластеризация + Opportunity Score.
-6. Этап 5 — Review Intelligence.
-7. Этап 6 — Unit Economics.
-8. Этап 7 — Supplier Scout.
-9. Этап 8 — полноценный Hermes orchestration.
-10. Этап 9 — evidence / audit / approvals.
-11. Этап 10 — demo polish.
-
-Не начинаем следующий крупный этап до проверки предыдущего.
-
----
-
-# 8. Что сознательно НЕ входит в текущий scope
-
-Пока не делаем:
-
-- общую BI-систему;
-- карту складов;
-- управление заказами;
-- ERP;
-- полноценный рекламный кабинет;
-- CRM;
-- логистическое управление;
-- создание marketplace content;
-- управление действующими SKU после запуска;
-- универсальную RAG-платформу.
-
-Если эти функции понадобятся, они будут отдельными продуктами/модулями после Product Hunter.
-
----
-
-# 9. Первый технический шаг после утверждения плана
-
-**Этап 0 + начало Этапа 1:**
-
-1. связать текущий сайт `product-hunter.shvarev-demo.ru` с этим репозиторием;
-2. перенести код прототипа;
-3. удалить широкую навигацию;
-4. переделать landing screen в список исследований Product Hunter;
-5. реализовать форму нового исследования;
-6. реализовать первую глубокую карточку opportunity на demo fixtures;
-7. оставить Hermes визуально присутствующим, но пока без глубокой автоматизации;
-8. после проверки UX перейти к backend/state machine.
-
----
-
-## Definition of Done для проекта
-
-Product Hunter считается готовым демо, когда:
-
-- пользователь может создать исследование;
-- система реально выполняет хотя бы один end-to-end market scan;
-- opportunities строятся из сохранённых данных, а не захардкоженного HTML;
-- Opportunity Score объясним;
-- review analysis имеет evidence;
-- unit economics пересчитывается;
-- supplier shortlist влияет на economics;
-- Hermes реально вызывает tools;
-- необратимые действия требуют approval;
-- итоговая рекомендация восстанавливается из данных и evidence;
-- Golden Path стабильно проходится на публичном стенде.
+# 22. Definition of Done V1
+
+V1 готова, когда:
+
+- пользователь может ввести произвольную категорию;
+- Hermes строит query expansion;
+- хотя бы один Market Scout делает реальный OpenRouter web research;
+- raw evidence сохраняется;
+- найденные товары нормализуются;
+- формируются архетипы;
+- рассчитываются собственные signals;
+- выдаётся TOP-20;
+- supplier probe делает реальный web research;
+- выдаётся TOP-5;
+- все неподтверждённые числа помечены как modelled;
+- каждый сильный вывод имеет evidence;
+- run укладывается в budget guard;
+- fixture demo стабильно работает даже при недоступности внешних источников.
