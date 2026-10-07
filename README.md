@@ -47,19 +47,20 @@ Agentic Product Hunter для поиска перспективных товар
 
 ## Текущий статус
 
-Реализован fixture-driven Этап 0/1 из IMPLEMENTATION_PLAN.md:
+### Stateful backend — реализован
 
-- новый search-first UX;
-- визуальный research run;
-- Hermes orchestration mock;
-- 4 Market Scouts;
-- Product Archetypes;
-- Market / Transfer / Russia Gap signals;
-- TOP-5 opportunities;
-- Supplier Probe;
-- TOP-5 supplier fixtures;
-- preliminary economics;
-- evidence layer;
-- Budget Guard UX.
+- FastAPI API на 127.0.0.1:3005;
+- PostgreSQL 16;
+- отдельный background worker;
+- persistent research_runs;
+- очередь research_jobs;
+- research_events и audit_log;
+- state machine research pipeline;
+- polling UI из API;
+- resume после reload через ?run=<uuid>;
+- история research runs из PostgreSQL;
+- demo skip через API;
+- nginx proxy /api/*;
+- PM2: demo-product-hunter-api + demo-product-hunter-worker.
 
-Следующий технический этап: FastAPI + PostgreSQL + jobs, после чего подключаем первый реальный OpenRouter Research Tool.
+Следующий технический этап: подключить первый реальный OpenRouter Research Tool (web search / fetch) к одному Market Scout.\n
