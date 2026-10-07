@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <link rel="stylesheet" href="/app.css?v=13">
+  <link rel="stylesheet" href="/app.css?v=14">
 </head>
 <body>
 <header class="topbar">
@@ -146,7 +146,7 @@
             <div class="scout" data-scout="amazon"><header><b>Amazon</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
             <div class="scout" data-scout="lazada"><header><b>Lazada</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
           </div>
-          <div class="source-disclaimer"><i data-lucide="info"></i><span>WB, Ozon, Amazon и Lazada исследуются через реальный OpenRouter web-search. Если источник не даёт достаточных данных, Product Hunter сохраняет fallback-статус вместо выдуманных цифр.</span><button type="button" id="liveEvidenceBtn">Показать live evidence</button></div>
+          <div class="source-disclaimer"><i data-lucide="info"></i><span>Market evidence уже LIVE: WB, Ozon, Amazon и Lazada исследуются через OpenRouter web-search. Архетипы, ranking и Supplier Probe на текущем этапе ещё modelled prototype.</span><button type="button" id="liveEvidenceBtn">Показать live evidence</button></div>
           <div class="live-evidence-panel" id="liveEvidencePanel" hidden></div>
         </article>
 
@@ -158,10 +158,10 @@
 
       <div class="intermediate-grid">
         <article class="panel stat-card"><span>Поисковых гипотез</span><strong id="statQueries">0</strong><small>RU + EN · по 4 рынкам</small></article>
-        <article class="panel stat-card"><span>Найдено страниц / карточек</span><strong id="statPages">0</strong><small>до дедупликации</small></article>
-        <article class="panel stat-card"><span>Полезных product records</span><strong id="statRecords">0</strong><small>после extraction</small></article>
-        <article class="panel stat-card"><span>Товарных архетипов</span><strong id="statArchetypes">0</strong><small>semantic clustering</small></article>
-        <article class="panel stat-card"><span>Кандидатов после screening</span><strong id="statCandidates">0</strong><small>для Supplier Probe</small></article>
+        <article class="panel stat-card"><span>Найдено live records</span><strong id="statPages">0</strong><small>4 market scouts</small></article>
+        <article class="panel stat-card"><span>Уникальных product records</span><strong id="statRecords">0</strong><small>live evidence</small></article>
+        <article class="panel stat-card"><span>Товарных архетипов</span><strong id="statArchetypes">0</strong><small>modelled prototype</small></article>
+        <article class="panel stat-card"><span>Кандидатов после screening</span><strong id="statCandidates">0</strong><small>modelled prototype</small></article>
       </div>
 
       <div class="run-actions">
@@ -177,7 +177,7 @@
         <div>
           <span class="eyebrow">PRODUCT HUNTER REPORT</span>
           <h1>TOP‑5 товарных возможностей</h1>
-          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · 4 рынка · 2 supplier-площадки · <span class="modelled-label">часть показателей — модельная оценка</span></p>
+          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">TOP‑5 / scoring / suppliers — modelled prototype</span></p>
         </div>
         <div class="result-summary">
           <div><span>Исследовано</span><strong id="sumRecords">214</strong><small>product records</small></div>
@@ -265,7 +265,7 @@
   <header><div class="drawer-brand"><span><i data-lucide="bot"></i></span><div><strong>Hermes</strong><small><i></i> контекст Product Hunter</small></div></div><button id="drawerClose"><i data-lucide="x"></i></button></header>
   <div class="drawer-context" id="drawerContext"><i data-lucide="database"></i><span>Контекст: новый поиск</span></div>
   <div class="chat" id="chat">
-    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: расширяю запрос, запускаю Market Scouts, собираю evidence и вызываю расчётные tools. В demo данные fixture-driven, но интерфейс повторяет будущий orchestration layer.</p></div></div>
+    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: расширяю запрос, запускаю LIVE Market Scouts и собираю evidence. Рыночный слой уже реальный; архетипы, scoring и Supplier Probe пока остаются modelled prototype.</p></div></div>
   </div>
   <div class="suggestions" id="suggestions"></div>
   <form class="composer" id="chatForm"><textarea id="chatInput" rows="1" placeholder="Спросите про сигналы, рынки или поставщиков…"></textarea><button><i data-lucide="arrow-up"></i></button></form>
@@ -273,6 +273,6 @@
 </aside>
 
 <div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
-<script src="/app.js?v=18"></script>
+<script src="/app.js?v=19"></script>
 </body>
 </html>
