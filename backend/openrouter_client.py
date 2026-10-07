@@ -6,6 +6,7 @@ import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from urllib.parse import urlsplit, urlunsplit
 from decimal import Decimal
 from typing import Any
 
@@ -14,7 +15,16 @@ from . import db as _db  # noqa: F401
 
 
 class OpenRouterError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        cost_usd: Decimal | float | str = 0,
+        usage: dict[str, Any] | None = None,
+    ):
+        super().__init__(message)
+        self.cost_usd = Decimal(str(cost_usd or 0))
+        self.usage = usage or {}
 
 
 @dataclass
@@ -34,6 +44,73 @@ def _json_content(text: str) -> dict[str, Any]:
         return json.loads(value)
     except json.JSONDecodeError as exc:
         raise OpenRouterError(f"Model did not return valid JSON: {value[:500]}") from exc
+
+
+def _canonical_url(url: str) -> str:
+    try:
+        parts = urlsplit(url)
+    except Exception:
+        return url
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+
+
+def _allowed_url(url: str, allowed_domains: list[str]) -> bool:
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except Exception:
+        return False
+    if not host:
+        return False
+    return any(host == domain or host.endswith("." + domain) for domain in allowed_domains)
+
+
+def _looks_like_product_url(url: str) -> bool:
+    path = (urlsplit(url).path or "").lower()
+    return any(token in path for token in (
+        "/product/", "/products/", "/dp/", "/gp/product/",
+        "/catalog/", "/detail.aspx",
+    ))
+
+
+def _annotation_products(
+    annotations: list[dict[str, Any]],
+    allowed_domains: list[str],
+) -> list[dict[str, Any]]:
+    products: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(title: str, url: str, summary: str = "") -> None:
+        if not url or not _allowed_url(url, allowed_domains) or not _looks_like_product_url(url):
+            return
+        canonical = _canonical_url(url)
+        if canonical in seen:
+            return
+        clean_title = (title or "").strip()
+        if not clean_title or "temporary redirect" in clean_title.lower():
+            clean_title = (summary or "").strip().splitlines()[0][:220] or "Marketplace product"
+        seen.add(canonical)
+        products.append({
+            "title": clean_title[:300],
+            "url": canonical,
+            "price_text": None,
+            "rating": None,
+            "review_count": None,
+            "feature_summary": (summary or "").strip()[:700],
+            "brand": None,
+        })
+
+    link_re = re.compile(r"\[([^\]]{3,300})\]\((https?://[^)\s]+)\)")
+    for annotation in annotations or []:
+        citation = annotation.get("url_citation") or {}
+        url = str(citation.get("url") or "")
+        title = str(citation.get("title") or "")
+        content = str(citation.get("content") or "")
+        add(title, url, content)
+
+        for match in link_re.finditer(content):
+            add(match.group(1), match.group(2), content)
+
+    return products[:10]
 
 
 def _nullable(kind: str) -> dict[str, Any]:
@@ -83,10 +160,14 @@ def scout_search(
     allowed_domains: list[str],
     max_results: int = 5,
     timeout: int = 75,
+    engine: str = "exa",
 ) -> OpenRouterResult:
     base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    model = os.environ.get("PRODUCT_HUNTER_SCOUT_MODEL", "qwen/qwen3-30b-a3b").strip()
+    model = os.environ.get(
+        "PRODUCT_HUNTER_SCOUT_MODEL",
+        "qwen/qwen3-30b-a3b-instruct-2507",
+    ).strip()
 
     if not api_key:
         raise OpenRouterError("OPENROUTER_API_KEY is not configured")
@@ -116,7 +197,7 @@ def scout_search(
             {
                 "type": "openrouter:web_search",
                 "parameters": {
-                    "engine": "exa",
+                    "engine": engine,
                     "max_results": max_results,
                     "search_context_size": "low",
                     "allowed_domains": allowed_domains,
@@ -133,6 +214,7 @@ def scout_search(
             },
         },
         "temperature": 0.1,
+        "max_tokens": 1200,
         "usage": {"include": True},
     }
 
@@ -163,15 +245,45 @@ def scout_search(
         raise OpenRouterError(f"OpenRouter response has no choices: {str(payload)[:1000]}")
 
     message = choices[0].get("message") or {}
-    parsed = _json_content(message.get("content") or "")
-    products = parsed.get("products") or []
     annotations = message.get("annotations") or []
     usage = payload.get("usage") or {}
-
     raw_cost = usage.get("cost")
     if raw_cost is None:
         raw_cost = 0
     cost = Decimal(str(raw_cost))
+
+    parse_error: OpenRouterError | None = None
+    try:
+        parsed = _json_content(message.get("content") or "")
+    except OpenRouterError as exc:
+        parse_error = exc
+        parsed = {}
+
+    raw_products = parsed.get("products") or []
+    fallback_products = _annotation_products(annotations, allowed_domains)
+
+    products: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    for item in [*raw_products, *fallback_products]:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "")
+        if not _allowed_url(url, allowed_domains):
+            continue
+        canonical = _canonical_url(url)
+        if canonical in seen_urls:
+            continue
+        normalized = dict(item)
+        normalized["url"] = canonical
+        seen_urls.add(canonical)
+        products.append(normalized)
+
+    if not products and parse_error is not None:
+        raise OpenRouterError(
+            str(parse_error),
+            cost_usd=cost,
+            usage=usage,
+        )
 
     return OpenRouterResult(
         payload=payload,
