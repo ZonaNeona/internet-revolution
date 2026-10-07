@@ -8,7 +8,7 @@
 
 Проект не должен превращаться в универсальную панель e-commerce. В фокусе только один глубокий end-to-end процесс — **поиск и проверка товарной возможности**.
 
-Публичный стенд: `commerce.shvarev-demo.ru`
+Публичный стенд: `product-hunter.shvarev-demo.ru`
 
 ---
 
@@ -182,7 +182,7 @@ Hermes не должен сам считать маржу, придумыват�
 ### Сделать
 
 - подключить репозиторий `ZonaNeona/internet-revolution`;
-- перенести исходники текущего `commerce.shvarev-demo.ru`;
+- перенести исходники текущего `product-hunter.shvarev-demo.ru`;
 - оставить в UI только Product Hunter;
 - убрать Markets, Launch, Operations и остальные широкие разделы;
 - создать структуру frontend / backend / docs;
@@ -706,7 +706,7 @@ TEST · confidence 82%
 
 **Этап 0 + начало Этапа 1:**
 
-1. связать текущий сайт `commerce.shvarev-demo.ru` с этим репозиторием;
+1. связать текущий сайт `product-hunter.shvarev-demo.ru` с этим репозиторием;
 2. перенести код прототипа;
 3. удалить широкую навигацию;
 4. переделать landing screen в список исследований Product Hunter;
