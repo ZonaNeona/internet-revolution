@@ -23,13 +23,13 @@ SOURCES = {
     },
 }
 
-SUPPLIER_QUERIES = {
+FALLBACK_QUERIES = {
     "vacuum": "cordless stick vacuum OEM manufacturer private label price MOQ",
     "bath": "bath mat OEM manufacturer private label price MOQ",
     "led": "RGBIC LED strip OEM manufacturer private label price MOQ",
 }
 
-ARCHETYPE_SUPPLIER_QUERIES = {
+ARCHETYPE_QUERIES = {
     "vacuum": {
         "bendable_led": "cordless stick vacuum bendable tube LED OEM manufacturer private label price MOQ",
         "pet_hair": "cordless stick vacuum pet hair anti tangle OEM manufacturer private label price MOQ",
@@ -37,6 +37,7 @@ ARCHETYPE_SUPPLIER_QUERIES = {
         "auto_empty": "cordless stick vacuum auto empty dock OEM manufacturer private label price MOQ",
         "self_standing": "self standing cordless stick vacuum removable battery OEM manufacturer price MOQ",
         "basic_cordless": "cordless stick vacuum OEM manufacturer private label price MOQ",
+        "generic_vacuum": "upright stick vacuum OEM manufacturer private label price MOQ",
     },
     "bath": {
         "stone_diatomite": "diatomite stone bath mat quick dry OEM manufacturer private label price MOQ",
@@ -44,6 +45,7 @@ ARCHETYPE_SUPPLIER_QUERIES = {
         "drainage": "drainage ribbed bath mat OEM manufacturer private label price MOQ",
         "memory_foam": "memory foam bath mat OEM manufacturer private label price MOQ",
         "eva_modular": "EVA modular bath mat OEM manufacturer private label price MOQ",
+        "generic_bath": "bath mat OEM manufacturer private label price MOQ",
     },
     "led": {
         "matter": "RGBIC LED strip Matter Thread OEM manufacturer private label price MOQ",
@@ -52,32 +54,9 @@ ARCHETYPE_SUPPLIER_QUERIES = {
         "neon": "RGBIC neon rope OEM manufacturer private label price MOQ",
         "outdoor": "outdoor RGBIC LED strip IP67 OEM manufacturer private label price MOQ",
         "generic_rgbic": "RGBIC LED strip OEM manufacturer private label price MOQ",
+        "generic_led": "smart LED strip OEM manufacturer private label price MOQ",
     },
 }
-def _top_archetype_key(run_id: str) -> str | None:
-    with connect() as conn:
-        row = conn.execute(
-            """
-            SELECT pa.archetype_key
-            FROM opportunity_scores os
-            JOIN product_archetypes pa ON pa.id=os.archetype_id
-            WHERE os.run_id=%s
-            ORDER BY os.opportunity_score DESC, pa.member_count DESC
-            LIMIT 1
-            """,
-            (run_id,),
-        ).fetchone()
-    return row["archetype_key"] if row else None
-
-
-def _supplier_query(run_id: str, dataset_key: str) -> str:
-    archetype_key = _top_archetype_key(run_id)
-    return (
-        ARCHETYPE_SUPPLIER_QUERIES.get(dataset_key, {}).get(archetype_key)
-        or SUPPLIER_QUERIES[dataset_key]
-    )
-
-
 def _enabled() -> bool:
     return os.environ.get("PRODUCT_HUNTER_LIVE_SCOUT", "0").strip() == "1"
 
@@ -90,11 +69,33 @@ def _model() -> str:
 
 
 def _run_cap() -> Decimal:
-    return Decimal(os.environ.get("PRODUCT_HUNTER_SUPPLIER_BUDGET_USD", "0.05"))
+    return Decimal(os.environ.get("PRODUCT_HUNTER_SUPPLIER_BUDGET_USD", "0.10"))
 
 
 def _daily_cap() -> Decimal:
     return Decimal(os.environ.get("PRODUCT_HUNTER_DAILY_LIVE_BUDGET_USD", "3.00"))
+
+
+def _top_archetypes(run_id: str, limit: int = 5) -> list[dict[str, Any]]:
+    with connect() as conn:
+        return conn.execute(
+            """
+            SELECT pa.id,pa.archetype_key,pa.label,os.opportunity_score
+            FROM opportunity_scores os
+            JOIN product_archetypes pa ON pa.id=os.archetype_id
+            WHERE os.run_id=%s
+            ORDER BY os.opportunity_score DESC,pa.member_count DESC
+            LIMIT %s
+            """,
+            (run_id, limit),
+        ).fetchall()
+
+
+def _query_for(dataset_key: str, archetype_key: str) -> str:
+    return (
+        ARCHETYPE_QUERIES.get(dataset_key, {}).get(archetype_key)
+        or FALLBACK_QUERIES[dataset_key]
+    )
 
 
 def _spent_run(run_id: str) -> Decimal:
@@ -119,68 +120,87 @@ def _spent_today_total() -> Decimal:
             WHERE created_at >= date_trunc('day',now())
             """
         ).fetchone()
-        suppliers = conn.execute(
+        supplier = conn.execute(
             """
             SELECT COALESCE(SUM(cost_usd),0) AS cost
             FROM supplier_search_calls
             WHERE created_at >= date_trunc('day',now())
             """
         ).fetchone()
-    return Decimal(str(market["cost"] or 0)) + Decimal(str(suppliers["cost"] or 0))
-def _existing_done(run_id: str, source: str, query: str) -> bool:
+    return Decimal(str(market["cost"] or 0)) + Decimal(str(supplier["cost"] or 0))
+def _existing_done(
+    run_id: str,
+    archetype_id: int,
+    source: str,
+    query: str,
+) -> bool:
     with connect() as conn:
         row = conn.execute(
             """
             SELECT 1
             FROM supplier_search_calls
-            WHERE run_id=%s AND source=%s AND query=%s AND status='done'
+            WHERE run_id=%s AND archetype_id=%s
+              AND source=%s AND query=%s AND status='done'
             LIMIT 1
             """,
-            (run_id, source, query),
+            (run_id, archetype_id, source, query),
         ).fetchone()
     return bool(row)
 
 
-def _create_call(run_id: str, source: str, query: str, engine: str) -> int:
+def _create_call(
+    run_id: str,
+    archetype_id: int,
+    source: str,
+    query: str,
+    engine: str,
+) -> int:
     with connect() as conn:
         row = conn.execute(
             """
             INSERT INTO supplier_search_calls(
-                run_id,source,query,engine,model,status
-            ) VALUES (%s,%s,%s,%s,%s,'running')
+                run_id,archetype_id,source,query,engine,model,status
+            ) VALUES (%s,%s,%s,%s,%s,%s,'running')
             RETURNING id
             """,
-            (run_id, source, query, engine, _model()),
+            (run_id, archetype_id, source, query, engine, _model()),
         ).fetchone()
     return int(row["id"])
 
 
 def _mark_budget_blocked(
-    run_id: str, source: str, query: str, engine: str, reason: str
+    run_id: str,
+    archetype_id: int,
+    source: str,
+    query: str,
+    engine: str,
+    reason: str,
 ) -> None:
     with connect() as conn:
         conn.execute(
             """
             INSERT INTO supplier_search_calls(
-                run_id,source,query,engine,model,status,error,completed_at
-            ) VALUES (%s,%s,%s,%s,%s,'budget_blocked',%s,now())
+                run_id,archetype_id,source,query,engine,model,
+                status,error,completed_at
+            ) VALUES (%s,%s,%s,%s,%s,%s,'budget_blocked',%s,now())
             """,
-            (run_id, source, query, engine, _model(), reason),
+            (
+                run_id, archetype_id, source, query, engine,
+                _model(), reason,
+            ),
         )
+
+
 def _refresh_counters(run_id: str) -> None:
     with connect() as conn:
         market = conn.execute(
-            """
-            SELECT COALESCE(SUM(cost_usd),0) AS cost
-            FROM search_calls WHERE run_id=%s
-            """,
+            "SELECT COALESCE(SUM(cost_usd),0) AS cost FROM search_calls WHERE run_id=%s",
             (run_id,),
         ).fetchone()
         supplier = conn.execute(
             """
-            SELECT
-                COALESCE(SUM(cost_usd),0) AS cost,
-                COUNT(*) FILTER (WHERE status='done') AS calls
+            SELECT COALESCE(SUM(cost_usd),0) AS cost,
+                   COUNT(*) FILTER (WHERE status='done') AS calls
             FROM supplier_search_calls
             WHERE run_id=%s
             """,
@@ -190,6 +210,7 @@ def _refresh_counters(run_id: str) -> None:
             "SELECT COUNT(*) AS count FROM supplier_offers WHERE run_id=%s",
             (run_id,),
         ).fetchone()
+
         market_cost = Decimal(str(market["cost"] or 0))
         supplier_cost = Decimal(str(supplier["cost"] or 0))
         conn.execute(
@@ -251,8 +272,15 @@ def _normalize_offer(item: dict[str, Any]) -> dict[str, Any]:
         "country": item.get("country") or item.get("place_of_origin"),
         "raw": item,
     }
+
+
 def _persist_success(
-    *, run_id: str, call_id: int, source: str, result
+    *,
+    run_id: str,
+    archetype_id: int,
+    call_id: int,
+    source: str,
+    result,
 ) -> int:
     usage = result.usage or {}
     normalized = [
@@ -269,8 +297,9 @@ def _persist_success(
         conn.execute(
             """
             UPDATE supplier_search_calls
-            SET status='done',cost_usd=%s,prompt_tokens=%s,completion_tokens=%s,
-                total_tokens=%s,result_count=%s,response_meta=%s,completed_at=now()
+            SET status='done',cost_usd=%s,prompt_tokens=%s,
+                completion_tokens=%s,total_tokens=%s,result_count=%s,
+                response_meta=%s,completed_at=now()
             WHERE id=%s
             """,
             (
@@ -292,13 +321,16 @@ def _persist_success(
             row = conn.execute(
                 """
                 INSERT INTO supplier_offers(
-                    run_id,search_call_id,source,supplier_name,product_title,
-                    source_url,price_text,moq_text,lead_time_text,
-                    customization_text,feature_summary,country,source_quality,raw_data
+                    run_id,archetype_id,search_call_id,source,supplier_name,
+                    product_title,source_url,price_text,moq_text,lead_time_text,
+                    customization_text,feature_summary,country,
+                    source_quality,raw_data
                 ) VALUES (
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0.80,%s
+                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0.80,%s
                 )
-                ON CONFLICT (run_id,source,source_url) DO UPDATE SET
+                ON CONFLICT (run_id,archetype_id,source,source_url)
+                WHERE archetype_id IS NOT NULL
+                DO UPDATE SET
                     search_call_id=EXCLUDED.search_call_id,
                     supplier_name=COALESCE(EXCLUDED.supplier_name,supplier_offers.supplier_name),
                     product_title=EXCLUDED.product_title,
@@ -312,11 +344,11 @@ def _persist_success(
                 RETURNING id
                 """,
                 (
-                    run_id, call_id, source, item["supplier_name"],
-                    item["product_title"], item["source_url"], item["price_text"],
-                    item["moq_text"], item["lead_time_text"],
-                    item["customization_text"], item["feature_summary"],
-                    item["country"], Jsonb(item["raw"]),
+                    run_id, archetype_id, call_id, source,
+                    item["supplier_name"], item["product_title"],
+                    item["source_url"], item["price_text"], item["moq_text"],
+                    item["lead_time_text"], item["customization_text"],
+                    item["feature_summary"], item["country"], Jsonb(item["raw"]),
                 ),
             ).fetchone()
             if row:
@@ -354,14 +386,13 @@ def _persist_failure(
     _refresh_counters(run_id)
 
 
-def _offer_count(run_id: str, source: str) -> int:
-    with connect() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) AS count FROM supplier_offers WHERE run_id=%s AND source=%s",
-            (run_id, source),
-        ).fetchone()
-    return int(row["count"] or 0)
-def _reuse_cached_call(run_id: str, source: str, query: str, engine: str) -> bool:
+def _reuse_cached_call(
+    run_id: str,
+    archetype_id: int,
+    source: str,
+    query: str,
+    engine: str,
+) -> bool:
     with connect() as conn:
         old = conn.execute(
             """
@@ -381,49 +412,58 @@ def _reuse_cached_call(run_id: str, source: str, query: str, engine: str) -> boo
         cached = conn.execute(
             """
             INSERT INTO supplier_search_calls(
-                run_id,source,query,engine,model,status,cost_usd,
-                result_count,response_meta,completed_at
-            ) VALUES (%s,%s,%s,%s,%s,'done',0,%s,%s,now())
+                run_id,archetype_id,source,query,engine,model,status,
+                cost_usd,result_count,response_meta,completed_at
+            ) VALUES (%s,%s,%s,%s,%s,%s,'done',0,%s,%s,now())
             RETURNING id
             """,
             (
-                run_id, source, query, engine, _model(),
+                run_id, archetype_id, source, query, engine, _model(),
                 old["result_count"],
                 Jsonb({"cache_hit": True, "source_call_id": old["id"]}),
             ),
         ).fetchone()
-        cached_id = cached["id"]
 
         conn.execute(
             """
             INSERT INTO supplier_offers(
-                run_id,search_call_id,source,supplier_name,product_title,
-                source_url,price_text,moq_text,lead_time_text,
+                run_id,archetype_id,search_call_id,source,supplier_name,
+                product_title,source_url,price_text,moq_text,lead_time_text,
                 customization_text,feature_summary,country,source_quality,raw_data
             )
-            SELECT %s,%s,source,supplier_name,product_title,
-                   source_url,price_text,moq_text,lead_time_text,
+            SELECT %s,%s,%s,source,supplier_name,
+                   product_title,source_url,price_text,moq_text,lead_time_text,
                    customization_text,feature_summary,country,source_quality,raw_data
             FROM supplier_offers
             WHERE search_call_id=%s
-            ON CONFLICT (run_id,source,source_url) DO NOTHING
+            ON CONFLICT (run_id,archetype_id,source,source_url)
+            WHERE archetype_id IS NOT NULL
+            DO NOTHING
             """,
-            (run_id, cached_id, old["id"]),
+            (run_id, archetype_id, cached["id"], old["id"]),
         )
 
     _refresh_counters(run_id)
     return True
-def _run_source(run_id: str, dataset_key: str, source: str) -> None:
+def _run_one(
+    run_id: str,
+    dataset_key: str,
+    archetype: dict[str, Any],
+    source: str,
+) -> None:
+    archetype_id = int(archetype["id"])
+    query = _query_for(dataset_key, archetype["archetype_key"])
     cfg = SOURCES[source]
-    query = _supplier_query(run_id, dataset_key)
     engine = cfg["engine"]
 
-    if _existing_done(run_id, source, query):
+    if _existing_done(run_id, archetype_id, source, query):
         return
-    if _reuse_cached_call(run_id, source, query, engine):
+    if _reuse_cached_call(run_id, archetype_id, source, query, engine):
         return
 
-    call_id = _create_call(run_id, source, query, engine)
+    call_id = _create_call(
+        run_id, archetype_id, source, query, engine
+    )
     try:
         result = scout_search(
             query=query,
@@ -434,6 +474,7 @@ def _run_source(run_id: str, dataset_key: str, source: str) -> None:
         )
         _persist_success(
             run_id=run_id,
+            archetype_id=archetype_id,
             call_id=call_id,
             source=source,
             result=result,
@@ -447,86 +488,139 @@ def _run_source(run_id: str, dataset_key: str, source: str) -> None:
             usage=exc.usage,
         )
     except Exception as exc:
-        _persist_failure(run_id, call_id, f"{type(exc).__name__}: {exc}")
+        _persist_failure(
+            run_id, call_id, f"{type(exc).__name__}: {exc}"
+        )
 
 
-def _source_summary(run_id: str, source: str) -> dict[str, Any]:
+def _archetype_summary(
+    run_id: str,
+    archetype: dict[str, Any],
+) -> dict[str, Any]:
+    archetype_id = int(archetype["id"])
     with connect() as conn:
-        row = conn.execute(
+        calls = conn.execute(
             """
-            SELECT
-                COUNT(*) FILTER (WHERE status='done') AS done_calls,
-                COUNT(*) FILTER (WHERE status='failed') AS failed_calls,
-                COUNT(*) FILTER (WHERE status='budget_blocked') AS blocked_calls,
-                COALESCE(SUM(cost_usd),0) AS cost
+            SELECT source,
+                   COUNT(*) FILTER (WHERE status='done') AS done_calls,
+                   COUNT(*) FILTER (WHERE status='failed') AS failed_calls,
+                   COUNT(*) FILTER (WHERE status='budget_blocked') AS blocked_calls,
+                   COALESCE(SUM(cost_usd),0) AS cost
             FROM supplier_search_calls
-            WHERE run_id=%s AND source=%s
+            WHERE run_id=%s AND archetype_id=%s
+            GROUP BY source
             """,
-            (run_id, source),
-        ).fetchone()
-    done = int(row["done_calls"] or 0)
-    failed = int(row["failed_calls"] or 0)
-    blocked = int(row["blocked_calls"] or 0)
-    records = _offer_count(run_id, source)
-    status = (
-        "done" if done
-        else "failed" if failed
-        else "budget_blocked" if blocked
-        else "empty"
-    )
+            (run_id, archetype_id),
+        ).fetchall()
+        offers = conn.execute(
+            """
+            SELECT source,COUNT(*) AS count
+            FROM supplier_offers
+            WHERE run_id=%s AND archetype_id=%s
+            GROUP BY source
+            """,
+            (run_id, archetype_id),
+        ).fetchall()
+
+    offer_map = {row["source"]: int(row["count"] or 0) for row in offers}
+    call_map = {row["source"]: row for row in calls}
+    sources: dict[str, Any] = {}
+    for source in SOURCES:
+        row = call_map.get(source) or {}
+        done = int(row.get("done_calls") or 0)
+        failed = int(row.get("failed_calls") or 0)
+        blocked = int(row.get("blocked_calls") or 0)
+        status = (
+            "done" if done
+            else "failed" if failed
+            else "budget_blocked" if blocked
+            else "empty"
+        )
+        sources[source] = {
+            "status": status,
+            "queries": done,
+            "records": offer_map.get(source, 0),
+            "cost_usd": float(row.get("cost") or 0),
+        }
+
     return {
-        "enabled": True,
-        "status": status,
-        "records": records,
-        "queries": done,
-        "cost_usd": float(row["cost"] or 0),
+        "archetype_id": archetype_id,
+        "archetype_key": archetype["archetype_key"],
+        "label": archetype["label"],
+        "opportunity_score": float(archetype["opportunity_score"]),
+        "sources": sources,
+        "records": sum(offer_map.values()),
+        "cost_usd": sum(
+            item["cost_usd"] for item in sources.values()
+        ),
     }
 def run_live_supplier_probe(
     run_id: str,
     dataset_key: str,
+    limit: int = 5,
 ) -> dict[str, Any]:
-    if not _enabled() or dataset_key not in SUPPLIER_QUERIES:
+    if not _enabled() or dataset_key not in FALLBACK_QUERIES:
         return {
             "enabled": False,
             "status": "disabled",
-            "sources": {},
+            "archetypes": [],
             "records": 0,
             "cost_usd": 0.0,
         }
 
-    planned = list(SOURCES)
-    query = _supplier_query(run_id, dataset_key)
-    for source in planned:
-        cfg = SOURCES[source]
-        if not _existing_done(run_id, source, query):
-            _reuse_cached_call(run_id, source, query, cfg["engine"])
+    archetypes = _top_archetypes(run_id, limit)
+    if not archetypes:
+        return {
+            "enabled": True,
+            "status": "empty",
+            "archetypes": [],
+            "records": 0,
+            "cost_usd": 0.0,
+        }
 
-    pending = [
-        source for source in planned
-        if not _existing_done(run_id, source, query)
-    ]
+    planned: list[tuple[dict[str, Any], str, str]] = []
+    for archetype in archetypes:
+        query = _query_for(dataset_key, archetype["archetype_key"])
+        for source, cfg in SOURCES.items():
+            if not _existing_done(
+                run_id, int(archetype["id"]), source, query
+            ):
+                _reuse_cached_call(
+                    run_id, int(archetype["id"]), source,
+                    query, cfg["engine"]
+                )
+            if not _existing_done(
+                run_id, int(archetype["id"]), source, query
+            ):
+                planned.append((archetype, source, query))
 
     available = min(
         max(Decimal("0"), _run_cap() - _spent_run(run_id)),
         max(Decimal("0"), _daily_cap() - _spent_today_total()),
     )
-    planned_call_cost = Decimal("0.012")
-    allowed_new = min(len(pending), int(available / planned_call_cost))
+    reserved_per_call = Decimal("0.010")
+    allowed = min(len(planned), int(available / reserved_per_call))
 
-    executable = pending[:allowed_new]
-    blocked = pending[allowed_new:]
-    for source in blocked:
+    executable = planned[:allowed]
+    blocked = planned[allowed:]
+    for archetype, source, query in blocked:
         cfg = SOURCES[source]
         _mark_budget_blocked(
-            run_id, source, query, cfg["engine"],
+            run_id,
+            int(archetype["id"]),
+            source,
+            query,
+            cfg["engine"],
             "supplier budget guard reserved capacity",
         )
 
     if executable:
-        with ThreadPoolExecutor(max_workers=len(executable)) as pool:
+        with ThreadPoolExecutor(max_workers=min(10, len(executable))) as pool:
             futures = [
-                pool.submit(_run_source, run_id, dataset_key, source)
-                for source in executable
+                pool.submit(
+                    _run_one, run_id, dataset_key, archetype, source
+                )
+                for archetype, source, _ in executable
             ]
             for future in as_completed(futures):
                 try:
@@ -534,45 +628,55 @@ def run_live_supplier_probe(
                 except Exception:
                     pass
 
-    summaries = {
-        source: _source_summary(run_id, source)
-        for source in SOURCES
-    }
-    cost = sum(item["cost_usd"] for item in summaries.values())
-    records = sum(item["records"] for item in summaries.values())
-    status = "done" if any(item["queries"] for item in summaries.values()) else "failed"
+    summaries = [
+        _archetype_summary(run_id, archetype)
+        for archetype in archetypes
+    ]
     _refresh_counters(run_id)
     return {
         "enabled": True,
-        "status": status,
-        "sources": summaries,
-        "records": records,
-        "cost_usd": cost,
+        "status": "done",
+        "archetypes": summaries,
+        "records": sum(item["records"] for item in summaries),
+        "cost_usd": float(_spent_run(run_id)),
     }
 
 
-def supplier_evidence(run_id: str) -> dict[str, Any]:
+def supplier_evidence(
+    run_id: str,
+    archetype_id: int | None = None,
+) -> dict[str, Any]:
+    params: list[Any] = [run_id]
+    call_where = "run_id=%s"
+    offer_where = "run_id=%s"
+    if archetype_id is not None:
+        call_where += " AND archetype_id=%s"
+        offer_where += " AND archetype_id=%s"
+        params.append(archetype_id)
+
     with connect() as conn:
         calls = conn.execute(
-            """
-            SELECT id,source,query,engine,model,status,cost_usd,prompt_tokens,
-                   completion_tokens,total_tokens,result_count,response_meta,error,
-                   created_at,completed_at
+            f"""
+            SELECT id,archetype_id,source,query,engine,model,status,
+                   cost_usd,prompt_tokens,completion_tokens,total_tokens,
+                   result_count,response_meta,error,created_at,completed_at
             FROM supplier_search_calls
-            WHERE run_id=%s
+            WHERE {call_where}
             ORDER BY id
             """,
-            (run_id,),
+            tuple(params),
         ).fetchall()
         offers = conn.execute(
-            """
-            SELECT id,source,supplier_name,product_title,source_url,price_text,
-                   moq_text,lead_time_text,customization_text,feature_summary,
-                   country,source_quality,created_at
+            f"""
+            SELECT id,archetype_id,source,supplier_name,product_title,
+                   source_url,price_text,moq_text,lead_time_text,
+                   customization_text,feature_summary,country,
+                   source_quality,created_at
             FROM supplier_offers
-            WHERE run_id=%s
+            WHERE {offer_where}
             ORDER BY source,id
             """,
-            (run_id,),
+            tuple(params),
         ).fetchall()
+
     return {"search_calls": calls, "offers": offers}
