@@ -100,27 +100,36 @@ PM2:
 
 ## Live OpenRouter research
 
-Amazon Market Scout уже работает на реальном OpenRouter web-search.
+Все четыре Market Scout работают через реальный OpenRouter web-search:
 
-Первый измеренный live run:
+- Wildberries → Exa;
+- Ozon → Parallel Search;
+- Amazon → Exa;
+- Lazada → Exa.
 
-- 3 Amazon search calls;
-- 14 уникальных product records после дедупликации;
-- фактическая стоимость $0.024472;
-- search_calls, raw_products и source evidence сохранены в PostgreSQL;
-- Budget Guard показывает actual spend;
-- публичный UI умеет показывать live evidence.
+Измеренный полный category-run «Вертикальные пылесосы»:
 
-WB, Ozon и Lazada пока остаются fixture-driven. Product Hunter не выдаёт fixture/modelled значения за реальные продажи.
+- 4 рынка;
+- 7 успешных search calls;
+- 19 уникальных product records после дедупликации;
+- фактическая стоимость market layer: $0.05664;
+- время до готового TOP-5: около 56 секунд;
+- search_calls, raw_products и source evidence сохраняются в PostgreSQL;
+- Budget Guard показывает actual provider spend;
+- публичный UI показывает live evidence по каждому рынку.
+
+Ингestion не зависит от идеального JSON модели: если structured output повреждён, Product Hunter извлекает product URL из OpenRouter search annotations. Числовые поля нормализуются перед записью в PostgreSQL.
+
+Product Hunter не выдаёт modelled значения за реальные продажи. Market Signal / Trend Transfer / Russia Gap остаются собственными индексами системы.
 
 Текущие лимиты production demo:
 
-- до $0.08 на live Amazon Scout одного run;
+- до $0.15 на live market-search слой одного run;
 - до $3.00 live-search расходов в сутки;
 - общий hard cap интерфейса — $1.50 на глубокий research run.
 
 ## Следующий этап
 
-Расширить тот же Market Scout контракт на WB/Ozon/Lazada, затем подключить реальный Supplier Probe. После этого fixture-данные будут заменяться live records по одному источнику без изменения остальной архитектуры.
+Подключить реальный Supplier Probe для Alibaba / Made-in-China, после чего preliminary economics сможет использовать live supplier price / MOQ вместо fixture-значений.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
