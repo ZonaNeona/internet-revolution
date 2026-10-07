@@ -555,6 +555,82 @@ function openLiveOpportunity(index){
   lucide.createIcons();
   showScreen("detail");
   loadLiveSupplierOffers(index);
+  loadLiveEconomics(index);
+}
+
+function formatRub(value){
+  if(value==null)return "—";
+  return new Intl.NumberFormat("ru-RU",{maximumFractionDigits:0}).format(Number(value))+" ₽";
+}
+
+function formatUsd(value){
+  if(value==null)return "—";
+  return "$"+Number(value).toFixed(2);
+}
+
+async function loadLiveEconomics(index){
+  const margin=document.getElementById("marginRange");
+  const retail=document.getElementById("retailRange");
+  const supplier=document.getElementById("supplierPrice");
+  const signal=document.getElementById("supplierSignal");
+  const warning=document.querySelector(".econ-warning span");
+  if(!margin || !retail || !supplier || !signal || !warning || !activeRunId)return;
+
+  if(index!==0){
+    margin.textContent="не рассчитано";
+    retail.textContent="—";
+    supplier.textContent="—";
+    signal.textContent="deep search нужен";
+    warning.textContent="Preliminary economics V1 рассчитывается только для TOP‑1, потому что live Supplier Probe пока запускается только для лидирующего архетипа.";
+    return;
+  }
+
+  try{
+    const data=await apiRequest("/api/research/"+activeRunId+"/economics");
+    const archetypeId=Number(liveOpportunities[index]?.id||0);
+    const item=(data.items||[]).find(x=>Number(x.archetype_id)===archetypeId) || (data.items||[])[0];
+
+    if(!item){
+      margin.textContent="нет расчёта";
+      retail.textContent="—";
+      supplier.textContent="—";
+      signal.textContent="—";
+      warning.textContent="Economics scenario ещё не сформирован для этого research run.";
+      return;
+    }
+
+    const retailMin=item.retail_price_min;
+    const retailMax=item.retail_price_max;
+    const supplierMin=item.supplier_price_min_usd;
+    const supplierMax=item.supplier_price_max_usd;
+
+    retail.textContent=
+      retailMin==null?"—":
+      Number(retailMin)===Number(retailMax)?formatRub(retailMin):(formatRub(retailMin)+" – "+formatRub(retailMax));
+    supplier.textContent=
+      supplierMin==null?"—":
+      Number(supplierMin)===Number(supplierMax)?formatUsd(supplierMin):(formatUsd(supplierMin)+" – "+formatUsd(supplierMax));
+    signal.textContent=Number(item.supplier_evidence_count||0)+" price evidence";
+
+    if(item.status==="ready" || item.status==="partial"){
+      const m1=Number(item.contribution_margin_min);
+      const m2=Number(item.contribution_margin_max);
+      margin.textContent=(Math.abs(m1-m2)<0.05?m1.toFixed(1):(m1.toFixed(1)+" – "+m2.toFixed(1)))+"%";
+      const a=item.assumptions||{};
+      warning.textContent=
+        (item.status==="partial"?"PARTIAL · ":"READY · ")+
+        "live inputs + assumptions_v1: FX "+Number(a.fx_usd_rub||0).toFixed(0)+" ₽/$ (модельное допущение), marketplace "+Number(a.marketplace_fee_pct||0)+"%, ads "+Number(a.ad_spend_pct||0)+"%, returns "+Number(a.returns_pct||0)+"%, tax "+Number(a.tax_pct||0)+"%.";
+    }else{
+      margin.textContent="недостаточно данных";
+      const notes=item.notes||{};
+      warning.textContent=
+        "INSUFFICIENT DATA · "+
+        (notes.retail_issue||notes.supplier_issue||"нет сопоставимой retail/supplier evidence для безопасного расчёта.");
+    }
+  }catch(err){
+    margin.textContent="ошибка";
+    warning.textContent="Не удалось загрузить economics scenario: "+err.message;
+  }
 }
 
 async function loadLiveSupplierOffers(index){
@@ -660,14 +736,14 @@ const hermesAnswers=[
   [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер выбирается по live-derived сигналам: foreign presence, Russia Gap, cross-market presence, review mass и feature recurrence. Supplier score пока не входит в live-формулу.","get_opportunity_score"],
   [/trend transfer/i,"Trend Transfer V1 — не прогноз продаж. Это индекс расхождения: архетип уже силён на зарубежных рынках, но заметно слабее представлен в РФ. Исторический lead/lag появится только после накопления собственных snapshots.","explain_trend_transfer"],
   [/поставщик/i,"Supplier Probe уже LIVE: ищет supplier product pages на Alibaba и Made-in-China. Price/MOQ сохраняются только если они видны в evidence; отсутствующие поля остаются пустыми.","probe_suppliers"],
-  [/экономик.*модел|модельн.*эконом/i,"В V1 retail price и supplier price могут приходить из публичных источников, а логистика, комиссии, реклама и возвраты — modelled assumptions. Они явно помечаются и используются только для ранжирования.","explain_economics_assumptions"]
+  [/экономик.*модел|модельн.*эконом/i,"Economics V1 уже работает детерминированно: retail и supplier prices берутся из live evidence, а FX, marketplace fee, ads, returns, tax и logistics — из assumptions_v1. Если единицы или цены нельзя сопоставить, расчёт возвращает insufficient_data.","explain_economics_assumptions"]
 ];
 
 function sendHermes(text){
   if(!text.trim())return;
   const chat=document.getElementById("chat");
   chat.insertAdjacentHTML("beforeend",'<div class="msg user"><div><p>'+escapeHtml(text)+'</p></div></div>');
-  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence, нормализация, архетипы, TOP‑5 и Supplier Probe уже LIVE. Modelled пока остаётся только preliminary economics.","Product Hunter context"];
+  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence, нормализация, архетипы, TOP‑5 и Supplier Probe уже LIVE. Preliminary economics использует live inputs + assumptions_v1 и умеет отказываться от расчёта при недостатке evidence.","Product Hunter context"];
   setTimeout(()=>{
     chat.insertAdjacentHTML("beforeend",'<div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>'+answer[1]+'</p><div class="tool-call">'+answer[2]+'</div></div></div>');
     lucide.createIcons();chat.scrollTop=chat.scrollHeight;
