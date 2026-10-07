@@ -189,8 +189,28 @@ V1:
 
 Web-fetch enrichment протестирован отдельно: B2B-площадки часто не отдают дополнительные MOQ/price поля, поэтому fetch не является блокирующим этапом.
 
+## Preliminary Economics V1
+
+Stage 6 реализован.
+
+Экономика использует:
+- retail price evidence из WB/Ozon только для TOP-1 архетипа;
+- supplier price evidence из live Supplier Probe;
+- robust filtering ценовых выбросов;
+- versioned assumptions_v1 для FX, marketplace fee, рекламы, возвратов, налогов, пошлины и логистики.
+
+Safety rule:
+- если retail/supplier units сопоставимы → READY/PARTIAL + contribution margin;
+- если evidence недостаточно или единицы неоднозначны → INSUFFICIENT DATA без выдуманных значений.
+
+Контрольные сценарии:
+- vacuum: retail 6 961 ₽ + supplier median $46.50 → PARTIAL margin −15.3%;
+- LED/Matter: supplier evidence есть, сопоставимой RUB retail price нет → INSUFFICIENT DATA.
+
+FX 95 ₽/$ в economics_v1 — именно модельное допущение, не live exchange rate.
+
 ## Следующий этап
 
-Preliminary Economics V1: нормализация supplier price units + retail evidence + versioned assumptions. Расчёт маржи выполняется только когда единицы сопоставимы; иначе система показывает insufficient data, а не выдумывает экономику.
+Deep Supplier Search по TOP-5 и улучшение economics inputs: live FX, более точная логистика/комиссии и unit normalization для товаров с длиной/весом.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
