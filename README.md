@@ -79,6 +79,7 @@ Research run не должен зависеть от HTTP-запроса или 
 - `POST /api/research`
 - `GET /api/research/{run_id}`
 - `GET /api/research/{run_id}/events`
+- `GET /api/research/{run_id}/live-evidence`
 - `POST /api/research/{run_id}/skip`
 
 ## Database
@@ -107,16 +108,20 @@ PM2:
 - Amazon → Exa;
 - Lazada → Exa.
 
-Измеренный полный category-run «Вертикальные пылесосы»:
+Контрольные fresh category-runs:
 
 - 4 рынка;
-- 7 успешных search calls;
-- 19 уникальных product records после дедупликации;
-- фактическая стоимость market layer: $0.05664;
-- время до готового TOP-5: около 56 секунд;
+- 8/8 успешных search calls;
+- 30–38 уникальных product records после дедупликации;
+- фактическая стоимость market layer: примерно $0.054 за run;
+- наблюдаемое время полного market layer: примерно 17–66 секунд в зависимости от latency внешнего search provider;
+- WB / Amazon / Lazada используют Exa, Ozon — Parallel Search;
+- Scout extractor: qwen/qwen3-30b-a3b-instruct-2507 без reasoning;
 - search_calls, raw_products и source evidence сохраняются в PostgreSQL;
 - Budget Guard показывает actual provider spend;
 - публичный UI показывает live evidence по каждому рынку.
+
+Повторный run той же категории в течение 6 часов использует cached evidence: контрольный повтор сохранил те же 38 records при $0.00 новых market-search расходов и завершился за 7.4 секунды.
 
 Ингestion не зависит от идеального JSON модели: если structured output повреждён, Product Hunter извлекает product URL из OpenRouter search annotations. Числовые поля нормализуются перед записью в PostgreSQL.
 
@@ -130,6 +135,6 @@ Product Hunter не выдаёт modelled значения за реальные
 
 ## Следующий этап
 
-Подключить реальный Supplier Probe для Alibaba / Made-in-China, после чего preliminary economics сможет использовать live supplier price / MOQ вместо fixture-значений.
+Реализовать Product Normalizer и Archetype Engine поверх сохранённых live records: canonical title, нормализация бренда/характеристик/единиц, дедупликация, embeddings и semantic clustering. После этого TOP-5 начнёт строиться из реального market research, а не fixture/modelled слоя.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
