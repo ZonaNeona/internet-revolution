@@ -133,6 +133,8 @@ let activeDataset = DATASETS.vacuum;
 let activeQuery = "";
 let activeRunId = null;
 let activeRunState = null;
+let liveOpportunities = [];
+let liveOpportunityCount = 0;
 let pollTimer = null;
 let runFinished = false;
 
@@ -155,6 +157,8 @@ document.querySelectorAll(".demo-query").forEach(btn=>{
 document.querySelectorAll("[data-home]").forEach(btn=>btn.addEventListener("click",()=>{
   stopPolling();
   activeRunId=null;
+  activeRunState=null;
+  liveOpportunities=[];
   history.replaceState(null,"",location.pathname);
   showScreen("home");
 }));
@@ -190,6 +194,7 @@ async function startResearch(query){
   activeDataset=datasetFor(query);
   activeRunId=null;
   activeRunState=null;
+  liveOpportunities=[];
   runFinished=false;
   document.getElementById("runTitle").textContent=query;
   setRunSubtitle(query);
@@ -405,21 +410,76 @@ async function resumeRunFromUrl(){
   }
 }
 
-function renderResults(){
+async function renderResults(){
   const d=activeDataset;
   const runStats=(activeRunState&&activeRunState.stats)||{};
+  liveOpportunities=[];
+  liveOpportunityCount=0;
+
+  if(activeRunId){
+    try{
+      const live=await apiRequest("/api/research/"+activeRunId+"/live-opportunities?limit=5");
+      liveOpportunities=live.items||[];
+      liveOpportunityCount=Number(live.count||liveOpportunities.length);
+    }catch(_){}
+  }
+
+  const hasLive=liveOpportunities.length>0;
   document.getElementById("resultQuery").textContent=activeQuery;
   document.getElementById("sumRecords").textContent=runStats.records ?? d.stats.records;
-  document.getElementById("sumArchetypes").textContent=runStats.archetypes ?? d.stats.archetypes;
-  document.getElementById("sumSuppliers").textContent=runStats.supplier_matches ?? d.stats.suppliers;
-  document.getElementById("mainInsightTitle").textContent=d.insight.title;
-  document.getElementById("mainInsightText").textContent=d.insight.text;
-  document.getElementById("mainTransferScore").textContent=d.insight.transfer;
-  document.getElementById("opportunityList").innerHTML=d.opportunities.map((o,i)=>opportunityCard(o,i)).join("");
-  document.querySelectorAll(".opp-card").forEach(card=>card.addEventListener("click",()=>openOpportunity(Number(card.dataset.index))));
+  document.getElementById("sumArchetypes").textContent=hasLive?liveOpportunityCount:(runStats.archetypes ?? d.stats.archetypes);
+  document.getElementById("sumSuppliers").textContent=hasLive?"—":(runStats.supplier_matches ?? d.stats.suppliers);
+
+  if(hasLive){
+    const top=liveOpportunities[0];
+    const transfer=Math.round((Number(top.foreign_signal||0)+Number(top.russia_gap||0))/2);
+    document.getElementById("mainInsightTitle").textContent="Самый сильный live-сигнал: "+top.label;
+    document.getElementById("mainInsightText").textContent=
+      "Foreign Signal "+Number(top.foreign_signal||0).toFixed(0)+
+      " против Russia Signal "+Number(top.russia_signal||0).toFixed(0)+
+      ". Russia Gap "+Number(top.russia_gap||0).toFixed(0)+
+      ", cross-market presence "+Number(top.cross_market_presence||0).toFixed(0)+"%.";
+    document.getElementById("mainTransferScore").textContent=transfer;
+    document.getElementById("opportunityList").innerHTML=liveOpportunities.map((o,i)=>liveOpportunityCard(o,i)).join("");
+    document.querySelectorAll(".opp-card").forEach(card=>card.addEventListener("click",()=>openLiveOpportunity(Number(card.dataset.index))));
+  }else{
+    document.getElementById("mainInsightTitle").textContent=d.insight.title;
+    document.getElementById("mainInsightText").textContent=d.insight.text;
+    document.getElementById("mainTransferScore").textContent=d.insight.transfer;
+    document.getElementById("opportunityList").innerHTML=d.opportunities.map((o,i)=>opportunityCard(o,i)).join("");
+    document.querySelectorAll(".opp-card").forEach(card=>card.addEventListener("click",()=>openOpportunity(Number(card.dataset.index))));
+  }
+
   lucide.createIcons();
   showScreen("results");
   renderResultLiveEvidence();
+}
+
+function liveOpportunityCard(o,i){
+  const marketNames={wb:"WB",ozon:"Ozon",amazon:"Amazon",lazada:"Lazada"};
+  const signals=o.market_signals||{};
+  const marketBars=Object.entries(marketNames).map(([key,label])=>{
+    const value=Number((signals[key]||{}).presence_score||0);
+    return '<div class="market-bar '+((key==="wb"||key==="ozon")?"ru":"")+'"><span>'+label+'</span><i><em style="width:'+value+'%"></em></i><b>'+Math.round(value)+'</b></div>';
+  }).join("");
+  const transfer=Math.round((Number(o.foreign_signal||0)+Number(o.russia_gap||0))/2);
+  const tags=[
+    Number(o.member_count||0)+" live records",
+    Number(o.market_count||0)+"/4 рынка",
+    "signals_v1"
+  ];
+  return '<article class="opp-card live-derived" data-index="'+i+'">'+
+    '<div class="rank">#'+(i+1)+'</div>'+
+    '<div class="opp-copy"><strong>'+escapeHtml(o.label)+'</strong><small>Архетип из нормализованных live records</small><div class="opp-tags">'+tags.map(t=>'<span>'+escapeHtml(t)+'</span>').join("")+'</div></div>'+
+    '<div class="market-bars">'+marketBars+'</div>'+
+    '<div class="opp-scores">'+
+      miniScore("Opportunity",Number(o.opportunity_score||0).toFixed(0))+
+      miniScore("Trend Transfer",transfer)+
+      miniScore("Russia Gap",Number(o.russia_gap||0).toFixed(0))+
+      miniScore("Cross-market",Number(o.cross_market_presence||0).toFixed(0))+
+    '</div>'+
+    '<button class="opp-open"><i data-lucide="chevron-right"></i></button>'+
+  '</article>';
 }
 
 function opportunityCard(o,i){
@@ -435,6 +495,64 @@ function opportunityCard(o,i){
   '</article>';
 }
 function miniScore(label,value){return '<div class="mini-score"><span>'+label+'</span><b>'+value+'</b></div>';}
+
+function openLiveOpportunity(index){
+  const o=liveOpportunities[index];
+  if(!o)return;
+
+  const transfer=Math.round((Number(o.foreign_signal||0)+Number(o.russia_gap||0))/2);
+  const marketNames={wb:"WB",ozon:"Ozon",amazon:"Amazon",lazada:"Lazada"};
+  const signals=o.market_signals||{};
+
+  document.getElementById("detailRank").textContent="#"+(index+1);
+  document.getElementById("detailTitle").textContent=o.label;
+  document.getElementById("detailDesc").textContent=
+    Number(o.member_count||0)+" live records · "+
+    Number(o.market_count||0)+"/4 рынка · score "+o.score_version;
+  document.getElementById("detailScore").textContent=Number(o.opportunity_score||0).toFixed(0);
+  document.getElementById("marginRange").textContent="следующий этап";
+  document.getElementById("retailRange").textContent="—";
+  document.getElementById("supplierPrice").textContent="—";
+  document.getElementById("supplierSignal").textContent="не подключён";
+  document.getElementById("russiaGap").textContent=Number(o.russia_gap||0).toFixed(0)+" / 100";
+
+  const reasons=[
+    ["Сильный зарубежный сигнал","Foreign Signal "+Number(o.foreign_signal||0).toFixed(0)+" против Russia Signal "+Number(o.russia_signal||0).toFixed(0)+"."],
+    ["Russia Gap","Cross-sectional gap = "+Number(o.russia_gap||0).toFixed(0)+" / 100. Это не исторический прогноз продаж."],
+    ["Cross-market presence","Архетип найден на "+Number(o.market_count||0)+" из 4 исследуемых рынков."],
+    ["Evidence density",Number(o.member_count||0)+" нормализованных товаров · review mass score "+Number(o.review_mass_score||0).toFixed(0)+" · recurrence "+Number(o.feature_recurrence||0).toFixed(0)+"."]
+  ];
+  document.getElementById("reasonsList").innerHTML=reasons.map((item,i)=>
+    '<div class="reason"><span>0'+(i+1)+'</span><div><strong>'+escapeHtml(item[0])+'</strong><small>'+escapeHtml(item[1])+'</small></div></div>'
+  ).join("");
+
+  const marketRows=Object.entries(marketNames).map(([key,label])=>{
+    const value=Number((signals[key]||{}).presence_score||0);
+    const count=Number((signals[key]||{}).offer_count||0);
+    return '<div class="signal-row '+((key==="wb"||key==="ozon")?"ru":"")+'"><span>'+label+'</span><i><em style="width:'+value+'%"></em></i><b>'+Math.round(value)+' · '+count+'</b></div>';
+  }).join("");
+  document.getElementById("marketSignals").innerHTML=
+    marketRows+
+    '<div class="signal-row"><span>Transfer</span><i><em style="width:'+transfer+'%"></em></i><b>'+transfer+'</b></div>'+
+    '<div class="signal-row ru"><span>Russia Gap</span><i><em style="width:'+Number(o.russia_gap||0)+'%"></em></i><b>'+Number(o.russia_gap||0).toFixed(0)+'</b></div>';
+
+  document.getElementById("supplierBody").innerHTML=
+    '<tr><td colspan="6"><strong>Live Supplier Probe — следующий этап.</strong><br>Текущий live TOP‑5 не использует fixture-поставщиков.</td></tr>';
+
+  document.getElementById("evidenceGrid").innerHTML=(o.evidence||[]).map(item=>{
+    const href=String(item.source_url||"").startsWith("http")?item.source_url:"#";
+    const meta=[
+      String(item.market||"").toUpperCase(),
+      item.price_text||null,
+      item.rating!=null?("★ "+item.rating):null,
+      item.review_count!=null?(item.review_count+" отзывов"):null
+    ].filter(Boolean).join(" · ");
+    return '<a class="evidence-item" href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer"><span>LIVE '+escapeHtml(String(item.market||"").toUpperCase())+'</span><strong>'+escapeHtml(item.canonical_title||"Без названия")+'</strong><small>'+escapeHtml(meta||"source evidence")+'</small></a>';
+  }).join("");
+
+  lucide.createIcons();
+  showScreen("detail");
+}
 
 function openOpportunity(index){
   const o=activeDataset.opportunities[index];
@@ -481,10 +599,10 @@ function updateHermesContext(screen){
 
 const hermesAnswers=[
   [/как система начн|начнёт поиск/i,"Сначала я определяю intent и расширяю запрос в набор продуктовых гипотез. Затем запускаю четыре Market Scout с доменными ограничениями, собираю доступные карточки и snippets, нормализую признаки и только после этого строю архетипы.","resolve_intent → expand_queries → collect_markets"],
-  [/реальн.*данн|данные.*реаль/i,"Сейчас WB, Ozon, Amazon и Lazada уже исследуются реальным OpenRouter web-search. URL, найденные карточки, доступные цены, рейтинги и review count сохраняются как evidence. Архетипы, Trend Transfer, TOP‑5 и Supplier Probe пока modelled prototype.","get_evidence_policy"],
+  [/реальн.*данн|данные.*реаль/i,"WB, Ozon, Amazon и Lazada исследуются реальным OpenRouter web-search. URL и product records сохраняются как evidence; Normalizer и Opportunity Score уже считаются из этих live records. Supplier Probe и экономика пока modelled.","get_evidence_policy"],
   [/стоит|стоимост|budget/i,"Измеренный свежий 4-market scan: 8 web-search вызовов, 35 product records и $0.05468. Повторный запуск в течение 6 часов использует cache и стоит $0 новых search-затрат. Supplier layer пока в эту цифру не входит.","get_budget_status"],
   [/почему не парсим|весь маркетплейс/i,"Полный обход дорог, хрупок и часто блокируется. Product Hunter использует adaptive sampling: расширяет запросы, собирает разнообразную выборку и прекращает поиск, когда новые запросы перестают давать новые архетипы.","explain_sampling_strategy"],
-  [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер одновременно имеет высокий зарубежный signal, высокий Russia Gap, достаточный supplier signal и проходит предварительную экономику. То есть это не просто популярный товар, а сильное рыночное расхождение.","get_opportunity_score"],
+  [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер выбирается по live-derived сигналам: foreign presence, Russia Gap, cross-market presence, review mass и feature recurrence. Supplier score пока не входит в live-формулу.","get_opportunity_score"],
   [/trend transfer/i,"Trend Transfer V1 — не прогноз продаж. Это индекс расхождения: архетип уже силён на зарубежных рынках, но заметно слабее представлен в РФ. Исторический lead/lag появится только после накопления собственных snapshots.","explain_trend_transfer"],
   [/поставщик/i,"Supplier Probe строит запросы из спецификации архетипа, а не из названия branded SKU. Потом сравнивает normalized features и semantic similarity на Alibaba и Made-in-China.","probe_suppliers"],
   [/экономик.*модел|модельн.*эконом/i,"В V1 retail price и supplier price могут приходить из публичных источников, а логистика, комиссии, реклама и возвраты — modelled assumptions. Они явно помечаются и используются только для ранжирования.","explain_economics_assumptions"]
@@ -494,7 +612,7 @@ function sendHermes(text){
   if(!text.trim())return;
   const chat=document.getElementById("chat");
   chat.insertAdjacentHTML("beforeend",'<div class="msg user"><div><p>'+escapeHtml(text)+'</p></div></div>');
-  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence уже берётся из LIVE web-search. Для вопросов про архетипы, TOP‑5 и suppliers я пока использую modelled prototype слой до следующего этапа реализации.","Product Hunter context"];
+  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence, нормализация, архетипы и TOP‑5 уже live-derived. Supplier Probe и preliminary economics пока остаются modelled до следующего этапа.","Product Hunter context"];
   setTimeout(()=>{
     chat.insertAdjacentHTML("beforeend",'<div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>'+answer[1]+'</p><div class="tool-call">'+answer[2]+'</div></div></div>');
     lucide.createIcons();chat.scrollTop=chat.scrollHeight;
