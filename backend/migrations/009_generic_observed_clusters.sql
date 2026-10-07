@@ -1,0 +1,2 @@
+ALTER TABLE research_runs
+    ADD COLUMN IF NOT EXISTS clustering_cost_usd NUMERIC(10,6) NOT NULL DEFAULT 0;

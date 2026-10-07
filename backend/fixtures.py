@@ -3,6 +3,24 @@ from __future__ import annotations
 import re
 
 DATASETS = {
+    "generic": {
+        "patterns": [],
+        "stats": {
+            "queries": 0,
+            "pages": 0,
+            "records": 0,
+            "archetypes": 0,
+            "candidates": 0,
+            "supplier_matches": 0,
+        },
+        "cost": 0.0,
+        "scouts": {
+            "wb": {"records": 0, "queries": 0, "pages": 0},
+            "ozon": {"records": 0, "queries": 0, "pages": 0},
+            "amazon": {"records": 0, "queries": 0, "pages": 0},
+            "lazada": {"records": 0, "queries": 0, "pages": 0},
+        },
+    },
     "vacuum": {
         "patterns": [r"пылесос", r"vacuum"],
         "stats": {
@@ -121,10 +139,10 @@ STAGES = [
 
 def dataset_key_for(query: str) -> str:
     q = query.strip().lower()
-    for key, dataset in DATASETS.items():
-        if any(re.search(pattern, q, flags=re.I) for pattern in dataset["patterns"]):
-            return key
-    return "vacuum"
+    exact = {'вертикальные пылесосы':'vacuum','коврики для ванной':'bath','светодиодные ленты':'led'}
+    if q in exact:
+        return exact[q]
+    return "generic"
 
 
 def initial_stats() -> dict:

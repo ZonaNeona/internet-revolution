@@ -45,12 +45,27 @@ class SupplierSearchResult:
     cost_usd: Decimal
 
 
+def _response_payload(response):
+    """Accept JSON envelopes and harmless provider keep-alive comment lines."""
+    raw=response.read().decode('utf-8-sig')
+    raw='\n'.join(line for line in raw.splitlines() if not line.lstrip().startswith(':'))
+    try:
+        payload=json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise OpenRouterError(f'Provider returned an invalid or incomplete JSON envelope ({len(raw)} characters; prefix {raw[:24]!r})') from exc
+    if not isinstance(payload,dict): raise OpenRouterError('Provider returned a non-object envelope')
+    return payload
+
+
 def _json_content(text: str) -> dict[str, Any]:
     value = (text or "").strip()
     value = re.sub(r"^\x60\x60\x60(?:json)?\s*", "", value, flags=re.I)
     value = re.sub(r"\s*\x60\x60\x60$", "", value)
     try:
-        return json.loads(value)
+        parsed = json.loads(value)
+        if not isinstance(parsed, dict):
+            raise OpenRouterError('Model returned a non-object JSON response')
+        return parsed
     except json.JSONDecodeError as exc:
         raise OpenRouterError(f"Model did not return valid JSON: {value[:500]}") from exc
 
@@ -68,17 +83,29 @@ def _allowed_url(url: str, allowed_domains: list[str]) -> bool:
         host = (urlsplit(url).hostname or "").lower()
     except Exception:
         return False
-    if not host:
+    if urlsplit(url).scheme not in ("http","https") or not host:
         return False
     return any(host == domain or host.endswith("." + domain) for domain in allowed_domains)
 
 
 def _looks_like_product_url(url: str) -> bool:
     path = (urlsplit(url).path or "").lower()
+    if 'wildberries.' in (urlsplit(url).hostname or ''):
+        return bool(re.search(r'/catalog/\d+/detail\.aspx',path))
     return any(token in path for token in (
         "/product/", "/products/", "/product-detail/", "/dp/", "/gp/product/",
-        "/catalog/", "/detail.aspx",
+        "/catalog/", "/detail.aspx", "/item/", "/itm/", "/ip/",
     ))
+
+def _citation_urls(annotations):
+    urls=set()
+    for annotation in annotations or []:
+        if not isinstance(annotation,dict): continue
+        citation=annotation.get('url_citation') or {}
+        if citation.get('url'): urls.add(_canonical_url(citation['url']))
+        for url in re.findall(r'https?://[^\s)\]<>"]+',str(citation.get('content') or '')):
+            urls.add(_canonical_url(url))
+    return urls
 
 
 def _annotation_products(
@@ -110,6 +137,8 @@ def _annotation_products(
 
     link_re = re.compile(r"\[([^\]]{3,300})\]\((https?://[^)\s]+)\)")
     for annotation in annotations or []:
+        if not isinstance(annotation, dict):
+            continue
         citation = annotation.get("url_citation") or {}
         url = str(citation.get("url") or "")
         title = str(citation.get("title") or "")
@@ -317,9 +346,11 @@ def scout_search(
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
-        if not _allowed_url(url, allowed_domains):
+        if not _allowed_url(url, allowed_domains) or not _looks_like_product_url(url):
             continue
         canonical = _canonical_url(url)
+        if canonical not in _citation_urls(annotations):
+            continue
         if canonical in seen_urls:
             continue
         normalized = dict(item)
@@ -454,9 +485,11 @@ def supplier_search(
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
-        if not _allowed_url(url, allowed_domains):
+        if not _allowed_url(url, allowed_domains) or not _looks_like_product_url(url):
             continue
         canonical = _canonical_url(url)
+        if canonical not in _citation_urls(annotations):
+            continue
         if canonical in seen_urls:
             continue
 

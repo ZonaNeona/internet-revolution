@@ -8,7 +8,8 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from backend.db import connect
-from backend.openrouter_client import OpenRouterError, scout_search
+from backend.openrouter_client import OpenRouterError, supplier_search
+from backend import budget
 
 SOURCES = {
     "alibaba": {
@@ -83,18 +84,43 @@ def _top_archetypes(run_id: str, limit: int = 5) -> list[dict[str, Any]]:
             SELECT pa.id,pa.archetype_key,pa.label,os.opportunity_score
             FROM opportunity_scores os
             JOIN product_archetypes pa ON pa.id=os.archetype_id
-            WHERE os.run_id=%s
-            ORDER BY os.opportunity_score DESC,pa.member_count DESC
+            WHERE os.run_id=%s AND pa.member_count>0
+            ORDER BY (pa.archetype_key='target_product') DESC,os.opportunity_score DESC,pa.member_count DESC
             LIMIT %s
             """,
             (run_id, limit),
         ).fetchall()
 
 
-def _query_for(dataset_key: str, archetype_key: str) -> str:
+def _query_for(
+    run_id: str,
+    dataset_key: str,
+    archetype_key: str,
+    archetype_label: str,
+) -> str:
+    if dataset_key != "generic":
+        return (
+            ARCHETYPE_QUERIES.get(dataset_key, {}).get(archetype_key)
+            or FALLBACK_QUERIES[dataset_key]
+        )
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT ontology FROM research_runs WHERE id=%s",
+            (run_id,),
+        ).fetchone()
+    ontology = dict((row or {}).get("ontology") or {})
+    for archetype in [*(ontology.get("observed_clusters") or {}).get("archetypes",[]), *(ontology.get("archetypes") or [])]:
+        if str(archetype.get("key") or "") == archetype_key:
+            query = str(archetype.get("supplier_query") or "").strip()
+            if query:
+                return query
+
+    category = str(ontology.get("category_label_en") or "").strip()
+    base = archetype_label or category or archetype_key
     return (
-        ARCHETYPE_QUERIES.get(dataset_key, {}).get(archetype_key)
-        or FALLBACK_QUERIES[dataset_key]
+        str(base)
+        + " OEM manufacturer private label wholesale price MOQ"
     )
 
 
@@ -285,7 +311,7 @@ def _persist_success(
     usage = result.usage or {}
     normalized = [
         _normalize_offer(item)
-        for item in result.products
+        for item in result.offers
         if isinstance(item, dict)
     ]
     normalized = [
@@ -355,6 +381,7 @@ def _persist_success(
                 inserted += 1
 
     _refresh_counters(run_id)
+    budget.refresh(run_id)
     return inserted
 def _persist_failure(
     run_id: str,
@@ -399,7 +426,9 @@ def _reuse_cached_call(
             SELECT id,result_count
             FROM supplier_search_calls
             WHERE run_id<>%s AND source=%s AND query=%s AND engine=%s
+              AND run_id IN (SELECT id FROM research_runs WHERE pipeline_version=2)
               AND model=%s AND status='done'
+              AND COALESCE((response_meta->>'cache_hit')::boolean,false)=false
               AND completed_at >= now() - interval '6 hours'
             ORDER BY completed_at DESC
             LIMIT 1
@@ -429,11 +458,11 @@ def _reuse_cached_call(
             INSERT INTO supplier_offers(
                 run_id,archetype_id,search_call_id,source,supplier_name,
                 product_title,source_url,price_text,moq_text,lead_time_text,
-                customization_text,feature_summary,country,source_quality,raw_data
+                customization_text,feature_summary,country,source_quality,raw_data,created_at
             )
             SELECT %s,%s,%s,source,supplier_name,
                    product_title,source_url,price_text,moq_text,lead_time_text,
-                   customization_text,feature_summary,country,source_quality,raw_data
+                   customization_text,feature_summary,country,source_quality,raw_data,created_at
             FROM supplier_offers
             WHERE search_call_id=%s
             ON CONFLICT (run_id,archetype_id,source,source_url)
@@ -444,6 +473,7 @@ def _reuse_cached_call(
         )
 
     _refresh_counters(run_id)
+    budget.refresh(run_id)
     return True
 def _run_one(
     run_id: str,
@@ -452,7 +482,12 @@ def _run_one(
     source: str,
 ) -> None:
     archetype_id = int(archetype["id"])
-    query = _query_for(dataset_key, archetype["archetype_key"])
+    query = _query_for(
+        run_id,
+        dataset_key,
+        archetype["archetype_key"],
+        archetype["label"],
+    )
     cfg = SOURCES[source]
     engine = cfg["engine"]
 
@@ -461,17 +496,23 @@ def _run_one(
     if _reuse_cached_call(run_id, archetype_id, source, query, engine):
         return
 
-    call_id = _create_call(
-        run_id, archetype_id, source, query, engine
-    )
     try:
-        result = scout_search(
+        reservation = budget.reserve(run_id,'supplier')
+    except budget.BudgetBlocked as exc:
+        _mark_budget_blocked(run_id,archetype_id,source,query,engine,str(exc))
+        budget.warning(run_id,str(exc))
+        return
+    billed = None
+    call_id = _create_call(run_id, archetype_id, source, query, engine)
+    try:
+        result = supplier_search(
             query=query,
-            market=cfg["label"],
+            source=cfg["label"],
             allowed_domains=cfg["domains"],
             max_results=6,
             engine=engine,
         )
+        billed = result.cost_usd if result.usage.get('cost') is not None else None
         _persist_success(
             run_id=run_id,
             archetype_id=archetype_id,
@@ -480,6 +521,7 @@ def _run_one(
             result=result,
         )
     except OpenRouterError as exc:
+        billed = exc.cost_usd if exc.usage else None
         _persist_failure(
             run_id,
             call_id,
@@ -491,6 +533,8 @@ def _run_one(
         _persist_failure(
             run_id, call_id, f"{type(exc).__name__}: {exc}"
         )
+    finally:
+        budget.settle(reservation,billed)
 
 
 def _archetype_summary(
@@ -559,7 +603,7 @@ def run_live_supplier_probe(
     dataset_key: str,
     limit: int = 5,
 ) -> dict[str, Any]:
-    if not _enabled() or dataset_key not in FALLBACK_QUERIES:
+    if not _enabled():
         return {
             "enabled": False,
             "status": "disabled",
@@ -580,7 +624,12 @@ def run_live_supplier_probe(
 
     planned: list[tuple[dict[str, Any], str, str]] = []
     for archetype in archetypes:
-        query = _query_for(dataset_key, archetype["archetype_key"])
+        query = _query_for(
+            run_id,
+            dataset_key,
+            archetype["archetype_key"],
+            archetype["label"],
+        )
         for source, cfg in SOURCES.items():
             if not _existing_done(
                 run_id, int(archetype["id"]), source, query
@@ -594,25 +643,7 @@ def run_live_supplier_probe(
             ):
                 planned.append((archetype, source, query))
 
-    available = min(
-        max(Decimal("0"), _run_cap() - _spent_run(run_id)),
-        max(Decimal("0"), _daily_cap() - _spent_today_total()),
-    )
-    reserved_per_call = Decimal("0.010")
-    allowed = min(len(planned), int(available / reserved_per_call))
-
-    executable = planned[:allowed]
-    blocked = planned[allowed:]
-    for archetype, source, query in blocked:
-        cfg = SOURCES[source]
-        _mark_budget_blocked(
-            run_id,
-            int(archetype["id"]),
-            source,
-            query,
-            cfg["engine"],
-            "supplier budget guard reserved capacity",
-        )
+    executable = planned
 
     if executable:
         with ThreadPoolExecutor(max_workers=min(10, len(executable))) as pool:
@@ -671,7 +702,7 @@ def supplier_evidence(
             SELECT id,archetype_id,source,supplier_name,product_title,
                    source_url,price_text,moq_text,lead_time_text,
                    customization_text,feature_summary,country,
-                   source_quality,created_at
+                   source_quality,created_at,raw_data
             FROM supplier_offers
             WHERE {offer_where}
             ORDER BY source,id

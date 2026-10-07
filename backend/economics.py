@@ -158,6 +158,43 @@ def _supplier_evidence(
             """,
             (run_id, archetype_id),
         ).fetchall()
+def _scenario_assumptions(
+    run_id: str,
+    dataset_key: str,
+) -> dict[str, Any]:
+    assumptions = {
+        **ASSUMPTIONS,
+        "logistics_rub": dict(ASSUMPTIONS["logistics_rub"]),
+    }
+
+    if dataset_key != "generic":
+        assumptions["selected_logistics_rub"] = float(
+            assumptions["logistics_rub"][dataset_key]
+        )
+        assumptions["logistics_class"] = dataset_key
+        return assumptions
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT ontology FROM research_runs WHERE id=%s",
+            (run_id,),
+        ).fetchone()
+    ontology = dict((row or {}).get("ontology") or {})
+    logistics_class = str(ontology.get("logistics_class") or "medium")
+    logistics_by_class = {
+        "small": 180.0,
+        "medium": 350.0,
+        "bulky": 750.0,
+    }
+    assumptions["selected_logistics_rub"] = logistics_by_class.get(
+        logistics_class,
+        350.0,
+    )
+    assumptions["logistics_class"] = logistics_class
+    assumptions["unit_kind"] = str(ontology.get("unit_kind") or "other")
+    return assumptions
+
+
 def calculate_preliminary_economics(
     run_id: str,
     dataset_key: str,
@@ -213,12 +250,14 @@ def calculate_preliminary_economics(
     landed_min = landed_max = None
     margin_min = margin_max = None
 
+    assumptions = _scenario_assumptions(run_id, dataset_key)
+
     if status in ("ready", "partial"):
-        fx = float(ASSUMPTIONS["fx_usd_rub"])
-        duty = float(ASSUMPTIONS["duty_pct"]) / 100
-        logistics = float(ASSUMPTIONS["logistics_rub"][dataset_key])
+        fx = float(assumptions["fx_usd_rub"])
+        duty = float(assumptions["duty_pct"]) / 100
+        logistics = float(assumptions["selected_logistics_rub"])
         variable_pct = sum(
-            float(ASSUMPTIONS[key]) / 100
+            float(assumptions[key]) / 100
             for key in (
                 "marketplace_fee_pct",
                 "ad_spend_pct",
@@ -319,7 +358,7 @@ def calculate_preliminary_economics(
                 landed_max,
                 margin_min,
                 margin_max,
-                Jsonb(ASSUMPTIONS),
+                Jsonb(assumptions),
                 Jsonb({
                     "retail": retail_evidence,
                     "suppliers": supplier_evidence,
@@ -341,7 +380,7 @@ def calculate_preliminary_economics(
         "landed_cost_max_rub": landed_max,
         "contribution_margin_min": margin_min,
         "contribution_margin_max": margin_max,
-        "assumptions": ASSUMPTIONS,
+        "assumptions": assumptions,
         "notes": notes,
     }
 def get_economics(run_id: str) -> list[dict[str, Any]]:

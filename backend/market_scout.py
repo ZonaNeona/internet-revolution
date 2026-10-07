@@ -94,15 +94,15 @@ MARKETS = {
 }
 
 
-def _supported_demo_query(dataset_key: str, user_query: str) -> bool:
-    q = user_query.casefold()
-    if dataset_key == "vacuum":
-        return "пылесос" in q or "vacuum" in q
-    if dataset_key == "bath":
-        return "коврик" in q or "bath mat" in q or "камен" in q
-    if dataset_key == "led":
-        return "лент" in q or "rgb" in q or "led" in q or "matter" in q
-    return False
+from backend.marketplaces import ACTIVE, run_config
+from backend import budget
+MARKETS = {k:dict(v, queries=(MARKETS.get(k) or {}).get('queries',{})) for k,v in ACTIVE.items()}
+
+def _query_plan(run_id, dataset_key):
+    run=run_config(run_id)
+    ontology=run.get('ontology') or {}
+    return {m:[str(q).strip()+' '+ACTIVE[m]['country'] for q in (ontology.get('market_queries',{}).get(m) or [])][:2] for m in run['selected_markets']}
+
 def _enabled() -> bool:
     return os.environ.get("PRODUCT_HUNTER_LIVE_SCOUT", "0").strip() == "1"
 
@@ -307,6 +307,9 @@ def _persist_success(*, run_id: str, call_id: int, market: str, result) -> int:
         )
         inserted = 0
         for product in normalized:
+            product['raw']['target_country'] = MARKETS[market]['country']
+            product['raw']['expected_currency'] = MARKETS[market]['currency']
+            product['raw']['field_provenance'] = 'web_search_extraction'
             row = conn.execute(
                 """
                 INSERT INTO raw_products(
@@ -348,6 +351,7 @@ def _persist_success(*, run_id: str, call_id: int, market: str, result) -> int:
                 ),
             )
     _refresh_run_live_counters(run_id)
+    budget.refresh(run_id)
     return inserted
 def _persist_failure(
     run_id: str,
@@ -393,6 +397,13 @@ def _run_one_query(run_id: str, market: str, query: str) -> None:
         return
     cfg = MARKETS[market]
     engine = cfg.get("engine", "exa")
+    try:
+        reservation = budget.reserve(run_id,'market')
+    except budget.BudgetBlocked as exc:
+        _mark_budget_blocked(run_id,market,query,engine,str(exc))
+        budget.warning(run_id,str(exc))
+        return
+    billed = None
     call_id = _create_call(run_id, market, query, engine)
     try:
         result = scout_search(
@@ -402,10 +413,12 @@ def _run_one_query(run_id: str, market: str, query: str) -> None:
             max_results=5,
             engine=engine,
         )
+        billed = result.cost_usd if result.usage.get('cost') is not None else None
         _persist_success(
             run_id=run_id, call_id=call_id, market=market, result=result
         )
     except OpenRouterError as exc:
+        billed = exc.cost_usd if exc.usage else None
         _persist_failure(
             run_id,
             call_id,
@@ -415,6 +428,8 @@ def _run_one_query(run_id: str, market: str, query: str) -> None:
         )
     except Exception as exc:
         _persist_failure(run_id, call_id, f"{type(exc).__name__}: {exc}")
+    finally:
+        budget.settle(reservation,billed)
 
 
 def _market_summary(run_id: str, market: str) -> dict[str, Any]:
@@ -466,7 +481,7 @@ def _market_summary(run_id: str, market: str) -> dict[str, Any]:
     blocked = int(row["blocked_calls"] or 0)
     records = _market_record_count(run_id, market)
 
-    if done and failed:
+    if done and (failed or blocked):
         status = "partial"
     elif done and records == 0:
         status = "empty"
@@ -496,11 +511,13 @@ def _reuse_cached_call(run_id: str, market: str, query: str, engine: str) -> boo
             SELECT id,result_count
             FROM search_calls
             WHERE run_id<>%s
+              AND run_id IN (SELECT id FROM research_runs WHERE pipeline_version=2)
               AND market=%s
               AND query=%s
               AND engine=%s
               AND model=%s
               AND status='done'
+              AND COALESCE((response_meta->>'cache_hit')::boolean,false)=false
               AND completed_at >= now() - interval '6 hours'
             ORDER BY completed_at DESC
             LIMIT 1
@@ -530,10 +547,10 @@ def _reuse_cached_call(run_id: str, market: str, query: str, engine: str) -> boo
             """
             INSERT INTO raw_products(
                 run_id,search_call_id,market,title,source_url,brand,price_text,
-                rating,review_count,feature_summary,source_quality,raw_data
+                rating,review_count,feature_summary,source_quality,raw_data,created_at
             )
             SELECT %s,%s,market,title,source_url,brand,price_text,
-                   rating,review_count,feature_summary,source_quality,raw_data
+                   rating,review_count,feature_summary,source_quality,raw_data,created_at
             FROM raw_products
             WHERE search_call_id=%s
             ON CONFLICT (run_id,market,source_url) DO NOTHING
@@ -555,23 +572,35 @@ def _reuse_cached_call(run_id: str, market: str, query: str, engine: str) -> boo
         )
 
     _refresh_run_live_counters(run_id)
+    budget.refresh(run_id)
     return True
 
 
 def run_live_market_scouts(run_id: str, dataset_key: str, user_query: str) -> dict[str, dict[str, Any]]:
-    if not _enabled() or not _supported_demo_query(dataset_key, user_query):
+    if not _enabled():
         return {
             market: {
                 "enabled": False, "status": "disabled", "records": 0,
                 "queries": 0, "cost_usd": 0.0, "errors": [],
             }
-            for market in MARKETS
+            for market in run_config(run_id)["selected_markets"]
+        }
+
+    query_plan = _query_plan(run_id, dataset_key)
+    if not any(query_plan.values()):
+        return {
+            market: {
+                "enabled": False, "status": "no_query_plan", "records": 0,
+                "queries": 0, "cost_usd": 0.0, "errors": [],
+            }
+            for market in run_config(run_id)["selected_markets"]
         }
 
     planned: list[tuple[str, str]] = []
-    for query_index in range(2):
-        for market, cfg in MARKETS.items():
-            queries = cfg["queries"][dataset_key]
+    max_queries = max((len(items) for items in query_plan.values()), default=0)
+    for query_index in range(max_queries):
+        for market in run_config(run_id)["selected_markets"]:
+            queries = query_plan.get(market) or []
             if query_index < len(queries):
                 planned.append((market, queries[query_index]))
 
@@ -588,20 +617,7 @@ def run_live_market_scouts(run_id: str, dataset_key: str, user_query: str) -> di
         if not _existing_done(run_id, item[0], item[1])
     ]
 
-    remaining_run = max(Decimal("0"), _run_cap() - _spent_run(run_id))
-    remaining_day = max(Decimal("0"), _daily_cap() - _spent_today())
-    available = min(remaining_run, remaining_day)
-    planned_call_cost = Decimal("0.012")
-    allowed_new = min(len(pending), int(available / planned_call_cost))
-
-    executable = pending[:allowed_new]
-    blocked = pending[allowed_new:]
-    for market, query in blocked:
-        cfg = MARKETS[market]
-        _mark_budget_blocked(
-            run_id, market, query, cfg.get("engine", "exa"),
-            "budget guard reserved capacity for higher-priority search calls",
-        )
+    executable = pending
 
     if executable:
         with ThreadPoolExecutor(max_workers=min(8, len(executable))) as pool:
@@ -617,7 +633,7 @@ def run_live_market_scouts(run_id: str, dataset_key: str, user_query: str) -> di
 
     return {
         market: _market_summary(run_id, market)
-        for market in MARKETS
+        for market in run_config(run_id)["selected_markets"]
     }
 
 

@@ -1,4 +1,22 @@
 const DATASETS = {
+  generic: {
+    match: /(?!)/,
+    query:"Динамическое исследование",
+    subtitle:"Hermes строит ontology, запросы, признаки и архетипы под конкретный товар или категорию.",
+    stats:{queries:0,pages:0,records:0,archetypes:0,candidates:0,suppliers:0,cost:0},
+    scouts:{
+      wb:{records:0,queries:0,pages:0},
+      ozon:{records:0,queries:0,pages:0},
+      amazon:{records:0,queries:0,pages:0},
+      lazada:{records:0,queries:0,pages:0}
+    },
+    insight:{
+      title:"Идёт динамический поиск товарной возможности",
+      text:"Результат будет построен только из evidence текущего запроса.",
+      transfer:0
+    },
+    opportunities:[]
+  },
   vacuum: {
     match: /пылесос/i,
     query: "Вертикальные пылесосы",
@@ -129,7 +147,7 @@ const SUPPLIERS = [
 ];
 
 const screens = ["home","run","results","detail"];
-let activeDataset = DATASETS.vacuum;
+let activeDataset = DATASETS.generic;
 let activeQuery = "";
 let activeRunId = null;
 let activeRunState = null;
@@ -145,7 +163,10 @@ function showScreen(name){
 }
 
 function datasetFor(query){
-  return Object.values(DATASETS).find(d=>d.match.test(query)) || DATASETS.vacuum;
+  return Object.entries(DATASETS)
+    .filter(([key])=>key!=="generic")
+    .map(([,value])=>value)
+    .find(d=>d.match.test(query)) || DATASETS.generic;
 }
 
 document.querySelectorAll(".demo-query").forEach(btn=>{
