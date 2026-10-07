@@ -568,6 +568,8 @@ Backend уже хранит research runs, jobs, events и audit trail в Postgr
 
 ## Этап 0 — смена UX-концепции
 
+**Статус: ✅ реализовано.**
+
 Сделать новый первый экран:
 
 - один search input;
@@ -587,6 +589,8 @@ Fixture-driven.
 
 ## Этап 1 — fixture-driven research execution
 
+**Статус: ✅ реализовано.**
+
 Реализовать визуально:
 
 - query expansion;
@@ -605,6 +609,8 @@ Fixture-driven.
 
 ## Этап 2 — глубокий TOP-5 UX
 
+**Статус: ✅ реализовано на fixture-данных.**
+
 Для каждого результата:
 
 - описание архетипа;
@@ -620,6 +626,8 @@ Fixture-driven.
 ---
 
 ## Этап 3 — backend + PostgreSQL + jobs
+
+**Статус: ✅ реализовано.** FastAPI, PostgreSQL, отдельный worker, DB-backed jobs, polling UI, resume после F5 и recovery после рестарта worker.
 
 - FastAPI;
 - PostgreSQL;
