@@ -722,6 +722,8 @@ Fixture-driven.
 
 ## Этап 9 — Economics
 
+**Статус: ✅ Preliminary Economics V1 реализован для TOP‑1.** Live retail/supplier price evidence + assumptions_v1. READY/PARTIAL/INSUFFICIENT_DATA; расчёт не выполняется при несопоставимых данных.
+
 - retail price range;
 - supplier price;
 - assumptions;
