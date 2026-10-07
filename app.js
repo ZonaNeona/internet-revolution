@@ -131,7 +131,8 @@ const SUPPLIERS = [
 const screens = ["home","run","results","detail"];
 let activeDataset = DATASETS.vacuum;
 let activeQuery = "";
-let runTimers = [];
+let activeRunId = null;
+let pollTimer = null;
 let runFinished = false;
 
 function showScreen(name){
@@ -150,9 +151,14 @@ document.querySelectorAll(".demo-query").forEach(btn=>{
     startResearch(btn.dataset.query);
   });
 });
-document.querySelectorAll("[data-home]").forEach(btn=>btn.addEventListener("click",()=>{clearRunTimers();showScreen("home");}));
+document.querySelectorAll("[data-home]").forEach(btn=>btn.addEventListener("click",()=>{
+  stopPolling();
+  activeRunId=null;
+  history.replaceState(null,"",location.pathname);
+  showScreen("home");
+}));
 document.getElementById("backResults").addEventListener("click",()=>showScreen("results"));
-document.getElementById("historyBtn").addEventListener("click",()=>showToast("История research runs появится после backend/state-machine этапа."));
+document.getElementById("historyBtn").addEventListener("click",showResearchHistory);
 
 document.getElementById("researchForm").addEventListener("submit",e=>{
   e.preventDefault();
@@ -161,45 +167,90 @@ document.getElementById("researchForm").addEventListener("submit",e=>{
   startResearch(q);
 });
 
-function startResearch(query){
-  clearRunTimers();
+async function apiRequest(path, options={}){
+  const response=await fetch(path,{
+    ...options,
+    headers:{"content-type":"application/json",...(options.headers||{})}
+  });
+  if(!response.ok){
+    let detail="API error "+response.status;
+    try{
+      const payload=await response.json();
+      detail=payload.detail||detail;
+    }catch(_){}
+    throw new Error(detail);
+  }
+  return response.json();
+}
+
+async function startResearch(query){
+  stopPolling();
   activeQuery=query;
   activeDataset=datasetFor(query);
+  activeRunId=null;
   runFinished=false;
   document.getElementById("runTitle").textContent=query;
+  setRunSubtitle(query);
+  resetRunUI();
+  showScreen("run");
+  try{
+    const run=await apiRequest("/api/research",{
+      method:"POST",
+      body:JSON.stringify({query})
+    });
+    activeRunId=run.id;
+    activeDataset=DATASETS[run.dataset_key]||datasetFor(run.query);
+    activeQuery=run.query;
+    history.replaceState(null,"",location.pathname+"?run="+encodeURIComponent(run.id));
+    applyRunState(run);
+    startPolling();
+  }catch(err){
+    showRunError("Не удалось создать research run: "+err.message);
+  }
+}
+
+function setRunSubtitle(query){
   const isSpecific=query.toLowerCase()!==activeDataset.query.toLowerCase();
   document.getElementById("runSubtitle").textContent=isSpecific
     ? "Проверяем конкретный товар, ищем его архетип, аналоги и cross-market gap."
     : activeDataset.subtitle;
-  resetRunUI();
-  showScreen("run");
-  const stages=[
-    {title:"Разбираем запрос",desc:"Определяем intent, категорию и основные характеристики",pct:8,delay:250,log:"resolve_intent → "+query},
-    {title:"Расширяем пространство поиска",desc:"Hermes строит RU/EN запросы и product hypotheses",pct:18,delay:850,log:"expand_queries → "+activeDataset.stats.queries+" поисковых гипотез"},
-    {title:"Market Scouts исследуют рынки",desc:"WB, Ozon, Amazon и Lazada работают параллельно",pct:39,delay:1550,log:"collect_markets → 4 scouts запущены"},
-    {title:"Нормализуем product records",desc:"Извлекаем характеристики, убираем дубликаты и брендовую шумность",pct:53,delay:2600,log:"normalize_products → "+activeDataset.stats.records+" records"},
-    {title:"Строим товарные архетипы",desc:"Embeddings + feature checks объединяют близкие товары",pct:66,delay:3450,log:"cluster_archetypes → "+activeDataset.stats.archetypes+" групп"},
-    {title:"Проверяем производство",desc:"Supplier Probe ищет похожие OEM/ODM предложения",pct:79,delay:4300,log:"probe_suppliers → "+activeDataset.stats.suppliers+" matches"},
-    {title:"Считаем предварительную экономику",desc:"Retail range + supplier range + модельные assumptions",pct:90,delay:5100,log:"calculate_preliminary_economics → TOP-20 пересчитан"},
-    {title:"Готовим TOP‑5",desc:"Финальный Opportunity Score и объяснение сигналов",pct:100,delay:5900,log:"rank_top_5 → отчёт готов"}
-  ];
-  stages.forEach((st,i)=>{
-    runTimers.push(setTimeout(()=>applyStage(i,st),st.delay));
-  });
-  runTimers.push(setTimeout(()=>finishRun(),6800));
 }
 
-function clearRunTimers(){runTimers.forEach(t=>clearTimeout(t));runTimers=[];}
+function stopPolling(){
+  if(pollTimer){
+    clearInterval(pollTimer);
+    pollTimer=null;
+  }
+}
+
+function startPolling(){
+  stopPolling();
+  pollTimer=setInterval(pollRun,500);
+}
+
+async function pollRun(){
+  if(!activeRunId)return;
+  try{
+    const run=await apiRequest("/api/research/"+activeRunId);
+    applyRunState(run);
+  }catch(err){
+    stopPolling();
+    showToast("Связь с Product Hunter API потеряна: "+err.message);
+  }
+}
 
 function resetRunUI(){
   document.getElementById("progressBar").style.width="8%";
   document.getElementById("progressPercent").textContent="8%";
-  document.getElementById("stageTitle").textContent="Разбираем запрос";
-  document.getElementById("stageDescription").textContent="Определяем intent и категорию";
+  document.getElementById("stageTitle").textContent="Создаём research run";
+  document.getElementById("stageDescription").textContent="Сохраняем задачу и ставим первый job в очередь";
   document.getElementById("costValue").textContent="$0.00";
   document.getElementById("researchLog").innerHTML="";
   ["statQueries","statPages","statRecords","statArchetypes","statCandidates"].forEach(id=>document.getElementById(id).textContent="0");
-  document.querySelectorAll(".pipe-step").forEach((el,i)=>{el.classList.toggle("active",i===0);el.classList.remove("done");});
+  document.querySelectorAll(".pipe-step").forEach((el,i)=>{
+    el.classList.toggle("active",i===0);
+    el.classList.remove("done");
+  });
   document.querySelectorAll(".pipeline>i").forEach(el=>el.classList.remove("done"));
   document.querySelectorAll(".scout").forEach(el=>{
     el.classList.remove("running","done");
@@ -209,79 +260,132 @@ function resetRunUI(){
     el.querySelector("footer span:first-child").textContent="0 запросов";
     el.querySelector("footer span:last-child").textContent="0 страниц";
   });
-  addLog("Hermes","Новый research run создан.");
 }
 
-function applyStage(index,stage){
-  document.getElementById("stageTitle").textContent=stage.title;
-  document.getElementById("stageDescription").textContent=stage.desc;
-  document.getElementById("progressPercent").textContent=stage.pct+"%";
-  document.getElementById("progressBar").style.width=stage.pct+"%";
+function applyRunState(run){
+  activeRunId=run.id;
+  activeQuery=run.query;
+  activeDataset=DATASETS[run.dataset_key]||datasetFor(run.query);
+  document.getElementById("runId").textContent="PH-"+run.id.slice(0,8).toUpperCase();
+  document.getElementById("runTitle").textContent=run.query;
+  setRunSubtitle(run.query);
+  document.getElementById("stageTitle").textContent=run.stage_title;
+  document.getElementById("stageDescription").textContent=run.stage_description;
+  document.getElementById("progressPercent").textContent=run.progress+"%";
+  document.getElementById("progressBar").style.width=run.progress+"%";
+  document.getElementById("costValue").textContent="$"+Number(run.estimated_cost_usd||0).toFixed(2);
+
+  const stageIndex=Number(run.stage_index||0);
   document.querySelectorAll(".pipe-step").forEach((el,i)=>{
-    el.classList.toggle("active",i===index);
-    el.classList.toggle("done",i<index);
+    el.classList.toggle("active",i===stageIndex && run.status!=="completed");
+    el.classList.toggle("done",i<stageIndex || run.status==="completed");
   });
-  document.querySelectorAll(".pipeline>i").forEach((el,i)=>el.classList.toggle("done",i<index));
-  addLog(index===2?"tool":"Hermes",stage.log,index===2);
-  const s=activeDataset.stats;
-  if(index>=1) document.getElementById("statQueries").textContent=s.queries;
-  if(index===2) startScouts();
-  if(index>=3){document.getElementById("statPages").textContent=s.pages;document.getElementById("statRecords").textContent=s.records;}
-  if(index>=4) document.getElementById("statArchetypes").textContent=s.archetypes;
-  if(index>=5) document.getElementById("statCandidates").textContent=s.candidates;
-  const cost=(s.cost*(stage.pct/100)).toFixed(2);
-  document.getElementById("costValue").textContent="$"+cost;
+  document.querySelectorAll(".pipeline>i").forEach((el,i)=>{
+    el.classList.toggle("done",i<stageIndex || run.status==="completed");
+  });
+
+  const stats=run.stats||{};
+  document.getElementById("statQueries").textContent=stats.queries||0;
+  document.getElementById("statPages").textContent=stats.pages||0;
+  document.getElementById("statRecords").textContent=stats.records||0;
+  document.getElementById("statArchetypes").textContent=stats.archetypes||0;
+  document.getElementById("statCandidates").textContent=stats.candidates||0;
+
+  renderScoutState(run.scouts||{},stageIndex,run.status);
+  renderRunEvents(run.events||[]);
+
+  if(run.status==="completed" && !runFinished){
+    runFinished=true;
+    stopPolling();
+    setTimeout(renderResults,260);
+  }else if(run.status==="failed"){
+    stopPolling();
+    showRunError(run.error||"Research worker завершился с ошибкой");
+  }
 }
 
-function startScouts(){
-  const cfg=activeDataset.scouts;
-  Object.entries(cfg).forEach(([key,v],idx)=>{
+function renderScoutState(scouts,stageIndex,status){
+  ["wb","ozon","amazon","lazada"].forEach(key=>{
     const el=document.querySelector('.scout[data-scout="'+key+'"]');
-    el.classList.add("running");
-    el.querySelector(".scout-state").textContent="исследует";
-    el.querySelector(".mini-progress i").style.width="35%";
-    setTimeout(()=>{
-      el.classList.remove("running");el.classList.add("done");
-      el.querySelector(".scout-state").textContent="готово";
-      el.querySelector(".scout-count").textContent=v.records;
-      el.querySelector(".mini-progress i").style.width="100%";
-      el.querySelector("footer span:first-child").textContent=v.queries+" запросов";
-      el.querySelector("footer span:last-child").textContent=v.pages+" страниц";
-    },700+idx*180);
+    const value=scouts[key]||{status:"waiting",records:0,queries:0,pages:0};
+    const done=value.status==="done" || stageIndex>2 || status==="completed";
+    const running=!done && stageIndex===2;
+    el.classList.toggle("done",done);
+    el.classList.toggle("running",running);
+    el.querySelector(".scout-state").textContent=done?"готово":running?"исследует":"ожидает";
+    el.querySelector(".scout-count").textContent=value.records||0;
+    el.querySelector(".mini-progress i").style.width=done?"100%":running?"35%":"0";
+    el.querySelector("footer span:first-child").textContent=(value.queries||0)+" запросов";
+    el.querySelector("footer span:last-child").textContent=(value.pages||0)+" страниц";
   });
 }
 
-function addLog(label,text,tool=false){
+function renderRunEvents(events){
   const log=document.getElementById("researchLog");
-  const time=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  log.insertAdjacentHTML("beforeend",'<div class="log-line '+(tool?"tool":"")+'"><time>'+time+'</time><div><b>'+label+'</b> · '+escapeHtml(text)+'</div></div>');
+  log.innerHTML=events.map(ev=>{
+    const date=new Date(ev.created_at);
+    const time=Number.isNaN(date.getTime())?"":date.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    const tool=(ev.meta||{}).stage && ev.stage_index>=1;
+    return '<div class="log-line '+(tool?"tool":"")+'"><time>'+time+'</time><div><b>'+escapeHtml(ev.actor||"Hermes")+'</b> · '+escapeHtml(ev.message)+'</div></div>';
+  }).join("");
   log.scrollTop=log.scrollHeight;
 }
 
-document.getElementById("skipRun").addEventListener("click",finishRun);
+function showRunError(message){
+  document.getElementById("stageTitle").textContent="Ошибка research run";
+  document.getElementById("stageDescription").textContent=message;
+  showToast(message);
+}
 
-function finishRun(){
-  if(runFinished)return;
-  runFinished=true;
-  clearRunTimers();
-  applyStage(7,{title:"Готово",desc:"TOP‑5 товарных возможностей сформирован",pct:100,log:"report_ready → TOP-5"});
-  document.getElementById("costValue").textContent="$"+activeDataset.stats.cost.toFixed(2);
-  Object.entries(activeDataset.scouts).forEach(([key,v])=>{
-    const el=document.querySelector('.scout[data-scout="'+key+'"]');
-    el.classList.remove("running");el.classList.add("done");
-    el.querySelector(".scout-state").textContent="готово";
-    el.querySelector(".scout-count").textContent=v.records;
-    el.querySelector(".mini-progress i").style.width="100%";
-    el.querySelector("footer span:first-child").textContent=v.queries+" запросов";
-    el.querySelector("footer span:last-child").textContent=v.pages+" страниц";
-  });
-  const s=activeDataset.stats;
-  document.getElementById("statQueries").textContent=s.queries;
-  document.getElementById("statPages").textContent=s.pages;
-  document.getElementById("statRecords").textContent=s.records;
-  document.getElementById("statArchetypes").textContent=s.archetypes;
-  document.getElementById("statCandidates").textContent=s.candidates;
-  setTimeout(renderResults,320);
+document.getElementById("skipRun").addEventListener("click",async()=>{
+  if(!activeRunId){
+    showToast("Research run ещё создаётся.");
+    return;
+  }
+  try{
+    const run=await apiRequest("/api/research/"+activeRunId+"/skip",{method:"POST",body:"{}"});
+    applyRunState(run);
+  }catch(err){
+    showToast("Не удалось завершить demo-run: "+err.message);
+  }
+});
+
+async function showResearchHistory(){
+  try{
+    const data=await apiRequest("/api/research?limit=10");
+    if(!data.items.length){
+      showToast("История пока пуста.");
+      return;
+    }
+    const latest=data.items[0];
+    showToast("В PostgreSQL сохранено "+data.items.length+" последних run. Последний: «"+latest.query+"» · "+latest.status+" · "+latest.progress+"%.");
+  }catch(err){
+    showToast("Не удалось прочитать историю: "+err.message);
+  }
+}
+
+async function resumeRunFromUrl(){
+  const runId=new URLSearchParams(location.search).get("run");
+  if(!runId)return;
+  try{
+    const run=await apiRequest("/api/research/"+encodeURIComponent(runId));
+    activeRunId=run.id;
+    activeQuery=run.query;
+    activeDataset=DATASETS[run.dataset_key]||datasetFor(run.query);
+    runFinished=false;
+    if(run.status==="completed"){
+      runFinished=true;
+      renderResults();
+      return;
+    }
+    resetRunUI();
+    showScreen("run");
+    applyRunState(run);
+    startPolling();
+  }catch(err){
+    history.replaceState(null,"",location.pathname);
+    showToast("Сохранённый research run не найден.");
+  }
 }
 
 function renderResults(){
@@ -383,4 +487,5 @@ function showToast(text){const t=document.getElementById("toast");t.querySelecto
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 
 updateHermesContext("home");
+resumeRunFromUrl();
 lucide.createIcons();
