@@ -56,9 +56,15 @@ Nginx
 - audit/event log;
 - Budget Guard state;
 - recovery оборванного job после рестарта worker;
-- fixture-driven Market Scouts / Product Archetypes / TOP-5.
+- 4 LIVE Market Scouts: WB / Ozon / Amazon / Lazada;
+- live Normalizer / Archetype Engine / Signal Engine;
+- live-derived TOP‑5;
+- live Supplier Probe по Alibaba + Made-in-China для TOP‑5;
+- Preliminary Economics V1;
+- final_rank_v1 с решениями TEST / WATCH / NEEDS_DATA / NO-GO;
+- 6-часовой cache market/supplier evidence.
 
-Backend и worker — реальные. Рыночные данные на текущем этапе остаются fixtures.
+Основной V1 pipeline уже live-derived. Modelled остаются только явно помеченные assumptions экономики (FX, комиссии, реклама, возвраты, пошлина, логистика) и отдельные fallback-сценарии.
 
 ## Почему worker state находится в PostgreSQL
 
@@ -80,6 +86,9 @@ Research run не должен зависеть от HTTP-запроса или 
 - `GET /api/research/{run_id}`
 - `GET /api/research/{run_id}/events`
 - `GET /api/research/{run_id}/live-evidence`
+- `GET /api/research/{run_id}/live-opportunities`
+- `GET /api/research/{run_id}/supplier-evidence`
+- `GET /api/research/{run_id}/economics`
 - `POST /api/research/{run_id}/skip`
 
 ## Database
@@ -179,11 +188,12 @@ V1:
 - отсутствующие поля остаются пустыми;
 - 6-часовой cache переиспользует supplier evidence без повторной оплаты.
 
-Контрольный LED probe:
+Контрольный Supplier Probe:
 
-- 2 B2B search calls;
-- 11 supplier offers;
-- свежая стоимость около $0.014625;
+- 2 B2B search calls на один архетип;
+- около 11 supplier offers на архетип;
+- свежая стоимость одного архетипа около $0.0146;
+- TOP‑5 = до 10 B2B search calls, ориентировочно $0.07–0.08;
 - часть offers содержит реальные price / MOQ;
 - cached повтор = $0 новых supplier-search расходов.
 
@@ -237,6 +247,18 @@ Decision rules:
 - решение NO-GO из-за contribution margin -15.3%;
 - полный cached pipeline до финального решения ≈ 10.4 секунды;
 - $0 новых search-расходов благодаря market/supplier cache.
+
+### Текущий бюджет полного V1
+
+По измеренным provider costs:
+
+- fresh market layer: около $0.054;
+- fresh TOP‑5 Supplier Probe: около $0.07–0.08;
+- Normalizer / Archetype / Signals / Economics / Final Ranking: без дополнительных OpenRouter-вызовов;
+- ожидаемый свежий полный V1-run: примерно $0.12–0.14;
+- cached повтор в пределах 6 часов: около $0 новых search-затрат.
+
+Общий интерфейсный hard cap остаётся $1.50/run, то есть текущая рабочая схема имеет большой запас.
 
 ## Следующий этап
 
