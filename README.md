@@ -166,8 +166,31 @@ V1 pipeline:
 
 Текущий archetype engine V1 детерминированный и оптимизирован под три demo-категории. Универсальный semantic/embedding слой остаётся следующим расширением.
 
+## Live Supplier Probe
+
+Stage 5 уже работает через реальные Alibaba + Made-in-China search calls.
+
+V1:
+
+- supplier query строится из фактического TOP-1 архетипа;
+- Alibaba и Made-in-China исследуются параллельно;
+- supplier product pages и source URLs сохраняются в PostgreSQL;
+- price / MOQ / lead time сохраняются только если они реально видимы в evidence;
+- отсутствующие поля остаются пустыми;
+- 6-часовой cache переиспользует supplier evidence без повторной оплаты.
+
+Контрольный LED probe:
+
+- 2 B2B search calls;
+- 11 supplier offers;
+- свежая стоимость около $0.014625;
+- часть offers содержит реальные price / MOQ;
+- cached повтор = $0 новых supplier-search расходов.
+
+Web-fetch enrichment протестирован отдельно: B2B-площадки часто не отдают дополнительные MOQ/price поля, поэтому fetch не является блокирующим этапом.
+
 ## Следующий этап
 
-Подключить live Supplier Probe к stage 5: Alibaba / Made-in-China → supplier offers → MOQ / price / lead time → Supplier Score. После этого preliminary economics сможет использовать реальные supplier inputs.
+Preliminary Economics V1: нормализация supplier price units + retail evidence + versioned assumptions. Расчёт маржи выполняется только когда единицы сопоставимы; иначе система показывает insufficient data, а не выдумывает экономику.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
