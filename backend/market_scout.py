@@ -626,7 +626,8 @@ def live_evidence(run_id: str) -> dict[str, Any]:
         calls = conn.execute(
             """
             SELECT id,market,query,engine,model,status,cost_usd,prompt_tokens,
-                   completion_tokens,total_tokens,result_count,error,created_at,completed_at
+                   completion_tokens,total_tokens,result_count,response_meta,
+                   error,created_at,completed_at
             FROM search_calls
             WHERE run_id=%s
             ORDER BY id
