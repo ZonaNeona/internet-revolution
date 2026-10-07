@@ -194,12 +194,15 @@ def get_research_economics(run_id: uuid.UUID):
 
 
 @app.get("/api/research/{run_id}/supplier-evidence")
-def get_supplier_evidence(run_id: uuid.UUID):
+def get_supplier_evidence(
+    run_id: uuid.UUID,
+    archetype_id: int | None = Query(default=None, ge=1),
+):
     rid = str(run_id)
     with connect() as conn:
         if not _get_run(conn, rid):
             raise HTTPException(status_code=404, detail="Research run not found")
-    return jsonable_encoder(supplier_evidence(rid))
+    return jsonable_encoder(supplier_evidence(rid, archetype_id))
 
 
 @app.get("/api/research/{run_id}/events")
