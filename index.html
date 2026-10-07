@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <link rel="stylesheet" href="/app.css?v=11">
+  <link rel="stylesheet" href="/app.css?v=12">
 </head>
 <body>
 <header class="topbar">
@@ -105,7 +105,7 @@
         <div class="budget-card">
           <span>Budget Guard</span>
           <strong id="costValue">$0.00</strong>
-          <small>лимит demo-run · $1.50</small>
+          <small>фактический live spend · hard cap $1.50</small>
         </div>
       </div>
 
@@ -146,7 +146,8 @@
             <div class="scout" data-scout="amazon"><header><b>Amazon</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
             <div class="scout" data-scout="lazada"><header><b>Lazada</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
           </div>
-          <div class="source-disclaimer"><i data-lucide="info"></i><span>На этом этапе цифры — fixture для демонстрации pipeline. В live-версии здесь будут structured records из OpenRouter web research.</span></div>
+          <div class="source-disclaimer"><i data-lucide="info"></i><span>Amazon Scout уже работает через реальный OpenRouter web-search. WB, Ozon и Lazada пока остаются demo fixtures; live-данные и фактическая стоимость сохраняются в PostgreSQL.</span><button type="button" id="liveEvidenceBtn">Показать live evidence</button></div>
+          <div class="live-evidence-panel" id="liveEvidencePanel" hidden></div>
         </article>
 
         <article class="panel log-panel">
@@ -190,6 +191,8 @@
         <div><span class="eyebrow">ГЛАВНЫЙ СИГНАЛ</span><h2 id="mainInsightTitle">Зарубежный тренд уже заметен, а предложение в РФ пока отстаёт</h2><p id="mainInsightText">Складная труба и подсветка зоны уборки стабильно встречаются у сильных Amazon/Lazada предложений, но заметно реже представлены на WB/Ozon. Product Hunter считает это потенциальным Trend Transfer.</p></div>
         <div class="insight-score"><strong id="mainTransferScore">94</strong><span>Trend Transfer</span></div>
       </article>
+
+      <article class="panel result-live-evidence" id="resultLiveEvidence" hidden></article>
 
       <div class="opportunity-list" id="opportunityList"></div>
 
@@ -270,6 +273,6 @@
 </aside>
 
 <div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
-<script src="/app.js?v=12"></script>
+<script src="/app.js?v=15"></script>
 </body>
 </html>
