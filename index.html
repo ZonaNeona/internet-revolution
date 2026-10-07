@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07100e">
+  <title>Product Hunter — AI-система товарных исследований</title>
+  <meta name="description" content="Product Hunter: поиск и проверка товарных возможностей для международного e-commerce.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="/app.css?v=2">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><i data-lucide="radar"></i></div>
+      <div>
+        <strong>Product Hunter</strong>
+        <span>AI-исследования товаров</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="researches">
+        <i data-lucide="layers-3"></i><span>Исследования</span><b>6</b>
+      </button>
+      <button class="nav-item" data-view="opportunities">
+        <i data-lucide="gem"></i><span>Возможности</span><b>24</b>
+      </button>
+      <button class="nav-item" data-view="methodology">
+        <i data-lucide="route"></i><span>Методика оценки</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-note">
+      <span class="eyebrow">ПРИНЦИП</span>
+      <strong>Evidence-first</strong>
+      <p>Любой вывод Product Hunter можно проверить по исходным данным и расчётам.</p>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="system-status">
+        <span class="pulse"></span>
+        <div>
+          <strong>Контур данных</strong>
+          <small>демо-источники · готов</small>
+        </div>
+      </div>
+      <button class="profile">
+        <span class="avatar">IR</span>
+        <span><strong>Internet Revolution</strong><small>Product Hunter demo</small></span>
+        <i data-lucide="chevrons-up-down"></i>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumbs">
+        <span>Product Hunter</span>
+        <i data-lucide="chevron-right"></i>
+        <strong id="pageTitle">Исследования</strong>
+      </div>
+      <div class="top-actions">
+        <span class="demo-badge"><i data-lucide="flask-conical"></i> Демо-данные</span>
+        <button class="icon-btn" aria-label="Уведомления"><i data-lucide="bell"></i><i class="notification-dot"></i></button>
+        <button class="hermes-open hermes-top"><i data-lucide="bot"></i> Спросить Hermes</button>
+      </div>
+    </header>
+
+    <section class="view active" id="view-researches">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow">PRODUCT RESEARCH</span>
+            <h1>Исследования</h1>
+            <p>От критериев поиска до аргументированного решения о тестовом запуске товара.</p>
+          </div>
+          <button class="btn primary" id="newResearchBtn"><i data-lucide="plus"></i> Новое исследование</button>
+        </div>
+
+        <div class="summary-grid">
+          <article class="metric-card">
+            <span>Активных исследований</span>
+            <strong>3</strong>
+            <small><i data-lucide="activity"></i> 2 задачи выполняются сейчас</small>
+          </article>
+          <article class="metric-card">
+            <span>Найдено возможностей</span>
+            <strong>24</strong>
+            <small><i data-lucide="sparkles"></i> 7 с оценкой выше 75</small>
+          </article>
+          <article class="metric-card">
+            <span>Кандидатов на TEST</span>
+            <strong>6</strong>
+            <small><i data-lucide="circle-check-big"></i> 2 ждут решения человека</small>
+          </article>
+          <article class="metric-card">
+            <span>Evidence coverage</span>
+            <strong>94%</strong>
+            <small><i data-lucide="shield-check"></i> выводы подтверждены источниками</small>
+          </article>
+        </div>
+
+        <article class="panel active-research">
+          <div class="panel-head">
+            <div>
+              <span class="eyebrow">АКТИВНО СЕЙЧАС</span>
+              <h2>Amazon DE · Home & Kitchen</h2>
+              <p>Цена €25–70 · маржа от 25% · первая партия до €15 000 · MOQ ≤ 500</p>
+            </div>
+            <div class="panel-actions">
+              <span class="status running"><i></i> Выполняется</span>
+              <button class="btn secondary" data-open-research="de-home"><i data-lucide="arrow-up-right"></i> Открыть</button>
+            </div>
+          </div>
+
+          <div class="research-progress">
+            <div class="progress-line"><i style="width:64%"></i></div>
+            <div class="progress-meta"><strong>7 из 11 этапов</strong><span>64%</span></div>
+          </div>
+
+          <div class="workflow">
+            <div class="workflow-step done"><span><i data-lucide="database-zap"></i></span><div><strong>Сбор рынка</strong><small>4 812 листингов</small></div></div>
+            <i class="workflow-link done"></i>
+            <div class="workflow-step done"><span><i data-lucide="combine"></i></span><div><strong>Нормализация</strong><small>3 926 SKU</small></div></div>
+            <i class="workflow-link done"></i>
+            <div class="workflow-step done"><span><i data-lucide="boxes"></i></span><div><strong>Кластеры</strong><small>146 групп</small></div></div>
+            <i class="workflow-link done"></i>
+            <div class="workflow-step done"><span><i data-lucide="filter"></i></span><div><strong>Отбор</strong><small>31 кандидат</small></div></div>
+            <i class="workflow-link done"></i>
+            <div class="workflow-step done"><span><i data-lucide="messages-square"></i></span><div><strong>Отзывы</strong><small>8 240 отзывов</small></div></div>
+            <i class="workflow-link active"></i>
+            <div class="workflow-step active"><span><i data-lucide="factory"></i></span><div><strong>Поставщики</strong><small>идёт поиск</small></div></div>
+            <i class="workflow-link"></i>
+            <div class="workflow-step"><span><i data-lucide="badge-check"></i></span><div><strong>Решение</strong><small>ожидание</small></div></div>
+          </div>
+
+          <div class="activity-strip">
+            <div><i data-lucide="check"></i><span>Проанализировано <b>8 240 отзывов</b></span></div>
+            <div><i data-lucide="check"></i><span>Найдено <b>12 сильных кандидатов</b></span></div>
+            <div class="active"><i data-lucide="loader-circle"></i><span>Проверяем <b>34 поставщика</b></span></div>
+            <time>обновлено 18 сек назад</time>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head table-head">
+            <div><span class="eyebrow">ИСТОРИЯ</span><h2>Последние исследования</h2></div>
+            <button class="text-btn">Все исследования <i data-lucide="arrow-right"></i></button>
+          </div>
+          <div class="research-table-wrap">
+            <table class="research-table">
+              <thead><tr><th>Исследование</th><th>Рынок</th><th>Статус</th><th>Возможности</th><th>Лучший score</th><th>Обновлено</th><th></th></tr></thead>
+              <tbody id="researchTableBody">
+                <tr data-open-research="de-home"><td><strong>Home & Kitchen · €25–70</strong><small>маржа ≥25% · MOQ ≤500</small></td><td><span class="market">DE</span> Amazon DE</td><td><span class="status running"><i></i> Выполняется</span></td><td><b>12</b></td><td><span class="score good">86</span></td><td>18 сек назад</td><td><button class="row-open"><i data-lucide="chevron-right"></i></button></td></tr>
+                <tr data-open-research="us-pet"><td><strong>Pet Supplies · $20–55</strong><small>маржа ≥28% · MOQ ≤800</small></td><td><span class="market">US</span> Amazon US</td><td><span class="status review">Нужно решение</span></td><td><b>7</b></td><td><span class="score good">82</span></td><td>32 мин назад</td><td><button class="row-open"><i data-lucide="chevron-right"></i></button></td></tr>
+                <tr><td><strong>Travel Accessories · £15–45</strong><small>маржа ≥24% · MOQ ≤600</small></td><td><span class="market">GB</span> Amazon UK</td><td><span class="status done">Завершено</span></td><td><b>5</b></td><td><span class="score mid">74</span></td><td>вчера</td><td><button class="row-open"><i data-lucide="chevron-right"></i></button></td></tr>
+                <tr><td><strong>Storage & Organization</strong><small>маржа ≥25% · бюджет €12 000</small></td><td><span class="market">DE</span> Amazon DE</td><td><span class="status done">Завершено</span></td><td><b>0</b></td><td><span class="score low">—</span></td><td>2 дня назад</td><td><button class="row-open"><i data-lucide="chevron-right"></i></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="view-opportunities">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow">PRODUCT HUNTER</span>
+            <h1>Товарные возможности</h1>
+            <p>Кандидаты, прошедшие первичный фильтр спроса, конкуренции и экономики.</p>
+          </div>
+          <button class="btn secondary" id="oppResearchBtn"><i data-lucide="sliders-horizontal"></i> Критерии исследования</button>
+        </div>
+
+        <div class="filterbar">
+          <button><span class="market">DE</span> Amazon DE <i data-lucide="chevron-down"></i></button>
+          <button>Home & Kitchen <i data-lucide="chevron-down"></i></button>
+          <button>Маржа ≥25% <i data-lucide="chevron-down"></i></button>
+          <button>Score ≥60 <i data-lucide="chevron-down"></i></button>
+          <span class="filter-result">12 кандидатов</span>
+        </div>
+
+        <article class="panel opportunities-panel">
+          <div class="opportunity-table-wrap">
+            <table class="opportunity-table">
+              <thead><tr><th>Товарная возможность</th><th>Score</th><th>Спрос</th><th>Динамика</th><th>Конкуренция</th><th>Маржа</th><th>Review Gap</th><th>Решение</th><th></th></tr></thead>
+              <tbody id="opportunityBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <div class="score-explainer">
+          <i data-lucide="info"></i>
+          <span><b>Opportunity Score</b> — объяснимая оценка из спроса, динамики, конкуренции, отзывов, экономики и рисков. Нажмите на кандидата, чтобы увидеть вклад каждого фактора.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-methodology">
+      <div class="page narrow">
+        <div class="page-head">
+          <div>
+            <span class="eyebrow">ПРОЗРАЧНАЯ ЛОГИКА</span>
+            <h1>Методика оценки</h1>
+            <p>Product Hunter разделяет детерминированные расчёты и AI-анализ, чтобы результат можно было проверить.</p>
+          </div>
+        </div>
+
+        <div class="method-grid">
+          <article class="panel method-card"><span class="method-icon"><i data-lucide="calculator"></i></span><div><strong>Детерминированно</strong><p>Цены, комиссии, валюты, фильтры, дедупликация, маржа, sensitivity analysis и итоговые формулы.</p><ul><li>без догадок LLM</li><li>воспроизводимые вычисления</li><li>версионирование входных данных</li></ul></div></article>
+          <article class="panel method-card"><span class="method-icon ai"><i data-lucide="sparkles"></i></span><div><strong>LLM / VLM</strong><p>Смысловая группировка аналогов, анализ отзывов, Product Gaps, слабоструктурированные страницы поставщиков.</p><ul><li>structured output</li><li>ссылки на evidence</li><li>confidence для выводов</li></ul></div></article>
+          <article class="panel method-card"><span class="method-icon hermes"><i data-lucide="bot"></i></span><div><strong>Hermes</strong><p>Оркестрирует шаги исследования и вызывает инструменты, но не подменяет собой расчётный слой.</p><ul><li>tool calling</li><li>job orchestration</li><li>human approval gates</li></ul></div></article>
+          <article class="panel method-card"><span class="method-icon evidence"><i data-lucide="shield-check"></i></span><div><strong>Evidence-first</strong><p>Каждая причина рекомендации связана с товаром, отзывами, поставщиком, временным рядом или формулой.</p><ul><li>audit trail</li><li>drill-down до источника</li><li>история изменений</li></ul></div></article>
+        </div>
+
+        <article class="panel score-model">
+          <div class="panel-head"><div><span class="eyebrow">OPPORTUNITY SCORE</span><h2>Из чего складывается оценка</h2></div><span class="score good large">86</span></div>
+          <div class="score-model-grid">
+            <div><span>Спрос</span><b>22 / 25</b><i><em style="width:88%"></em></i><small>устойчивый объём запросов и продаж</small></div>
+            <div><span>Динамика</span><b>14 / 15</b><i><em style="width:93%"></em></i><small>рост категории +31% за 12 месяцев</small></div>
+            <div><span>Конкуренция</span><b>16 / 20</b><i><em style="width:80%"></em></i><small>низкая концентрация лидеров</small></div>
+            <div><span>Review Gaps</span><b>14 / 15</b><i><em style="width:93%"></em></i><small>3 повторяющиеся решаемые проблемы</small></div>
+            <div><span>Экономика</span><b>15 / 20</b><i><em style="width:75%"></em></i><small>маржа выше целевого порога</small></div>
+            <div><span>Риск</span><b>5 / 5</b><i><em style="width:100%"></em></i><small>нет блокирующих факторов</small></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view detail-view" id="view-opportunity-detail">
+      <div class="detail-topbar">
+        <button class="back-btn" id="backToOpps"><i data-lucide="arrow-left"></i> К возможностям</button>
+        <span class="detail-path">Amazon DE / Home & Kitchen / <b>Дорожный отпариватель</b></span>
+      </div>
+
+      <div class="page detail-page">
+        <div class="opportunity-hero">
+          <div class="opp-title">
+            <div class="opp-icon"><i data-lucide="shirt"></i></div>
+            <div>
+              <span class="eyebrow">ТОВАРНАЯ ВОЗМОЖНОСТЬ · PH-DE-0142</span>
+              <h1>Компактный дорожный отпариватель</h1>
+              <p>Сегмент €35–50 · Amazon DE · обнаружен 7 октября 2026</p>
+            </div>
+          </div>
+          <div class="opp-decision">
+            <span class="recommendation test">TEST</span>
+            <div class="hero-score"><strong>86</strong><span>Opportunity Score</span></div>
+          </div>
+        </div>
+
+        <div class="detail-kpis">
+          <article><span>Спрос</span><strong>Высокий</strong><small class="positive">+31% за 12 мес.</small></article>
+          <article><span>Конкуренция</span><strong>Средняя</strong><small>Top-10 = 43% рынка</small></article>
+          <article><span>Расчётная маржа</span><strong>28,4%</strong><small class="positive">цель ≥25%</small></article>
+          <article><span>Review Gaps</span><strong>3</strong><small>2 высокой ценности</small></article>
+          <article><span>Поставщики</span><strong>7</strong><small>4 проходят фильтр</small></article>
+          <article><span>Evidence</span><strong>96%</strong><small>42 источника</small></article>
+        </div>
+
+        <nav class="detail-tabs" id="detailTabs">
+          <button class="active" data-tab="overview">Обзор</button>
+          <button data-tab="market">Рынок</button>
+          <button data-tab="competitors">Конкуренты <b>18</b></button>
+          <button data-tab="reviews">Отзывы <b>6 482</b></button>
+          <button data-tab="economics">Экономика</button>
+          <button data-tab="suppliers">Поставщики <b>7</b></button>
+          <button data-tab="decision">Решение <i class="tab-alert"></i></button>
+        </nav>
+
+        <div class="tab-pane active" id="tab-overview"></div>
+        <div class="tab-pane" id="tab-market"></div>
+        <div class="tab-pane" id="tab-competitors"></div>
+        <div class="tab-pane" id="tab-reviews"></div>
+        <div class="tab-pane" id="tab-economics"></div>
+        <div class="tab-pane" id="tab-suppliers"></div>
+        <div class="tab-pane" id="tab-decision"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<button class="hermes-fab hermes-open" aria-label="Открыть Hermes">
+  <span class="hermes-avatar"><i data-lucide="bot"></i><i class="online"></i></span>
+  <span><strong>Hermes</strong><small>AI-аналитик</small></span>
+</button>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="hermesDrawer">
+  <header class="drawer-head">
+    <div class="drawer-brand">
+      <span><i data-lucide="bot"></i></span>
+      <div><strong>Hermes</strong><small><i></i> в сети · контекст Product Hunter</small></div>
+    </div>
+    <button class="drawer-close" id="drawerClose"><i data-lucide="x"></i></button>
+  </header>
+  <div class="drawer-context" id="drawerContext"><i data-lucide="scan-search"></i><span>Контекст: исследования Product Hunter</span></div>
+  <div class="chat" id="chat">
+    <div class="msg assistant">
+      <span class="msg-avatar"><i data-lucide="bot"></i></span>
+      <div><p>Я работаю поверх данных Product Hunter. Могу объяснить оценку кандидата, пересчитать сценарий или запустить следующий шаг исследования.</p></div>
+    </div>
+  </div>
+  <div class="suggestions" id="chatSuggestions"></div>
+  <form class="composer" id="chatForm">
+    <textarea id="chatInput" rows="1" placeholder="Спросите о товаре, расчётах или рисках…"></textarea>
+    <button type="submit"><i data-lucide="arrow-up"></i></button>
+  </form>
+  <div class="drawer-foot"><i data-lucide="shield-check"></i><span>Демо: Hermes пока работает на fixture-данных. Реальные tools — на следующих этапах.</span></div>
+</aside>
+
+<div class="modal-backdrop" id="modalBackdrop"></div>
+<div class="modal" id="researchModal" role="dialog" aria-modal="true">
+  <header>
+    <div><span class="eyebrow">НОВОЕ ИССЛЕДОВАНИЕ</span><h2>Критерии Product Hunter</h2></div>
+    <button id="modalClose"><i data-lucide="x"></i></button>
+  </header>
+  <form id="researchForm">
+    <div class="form-grid">
+      <label><span>Рынок</span><select name="market"><option>Германия</option><option>США</option><option>Великобритания</option><option>ОАЭ</option></select></label>
+      <label><span>Маркетплейс</span><select name="marketplace"><option>Amazon DE</option><option>Amazon US</option><option>Amazon UK</option><option>Noon</option></select></label>
+      <label class="span-2"><span>Категория</span><select name="category"><option>Home & Kitchen</option><option>Pet Supplies</option><option>Travel Accessories</option><option>Sports & Outdoors</option></select></label>
+      <label><span>Цена от</span><div class="input-prefix"><i>€</i><input name="priceMin" type="number" value="25"></div></label>
+      <label><span>Цена до</span><div class="input-prefix"><i>€</i><input name="priceMax" type="number" value="70"></div></label>
+      <label><span>Минимальная маржа</span><div class="input-prefix"><input name="margin" type="number" value="25"><i>%</i></div></label>
+      <label><span>Максимальный MOQ</span><input name="moq" type="number" value="500"></label>
+      <label class="span-2"><span>Бюджет первой партии</span><div class="input-prefix"><i>€</i><input name="budget" type="number" value="15000"></div></label>
+      <label class="span-2"><span>Ограничения и исключения</span><textarea name="constraints" rows="3" placeholder="Например: исключить товары с сильной брендовой зависимостью и сложной сертификацией">Исключить сильно брендированные ниши и товары со сложной сертификацией.</textarea></label>
+    </div>
+    <div class="form-note"><i data-lucide="bot"></i><span>Hermes превратит эти критерии в план исследования. Сами числовые фильтры и экономика будут обрабатываться детерминированно.</span></div>
+    <footer><button type="button" class="btn secondary" id="modalCancel">Отмена</button><button class="btn primary" type="submit"><i data-lucide="play"></i> Запустить исследование</button></footer>
+  </form>
+</div>
+
+<div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
+
+<script src="/app.js?v=2"></script>
+</body>
+</html>
