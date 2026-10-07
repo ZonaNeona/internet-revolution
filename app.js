@@ -312,14 +312,17 @@ function renderScoutState(scouts,stageIndex,status){
     const el=document.querySelector('.scout[data-scout="'+key+'"]');
     const value=scouts[key]||{status:"waiting",records:0,queries:0,pages:0};
     const live=value.source==="live";
-    const done=value.status==="done" || stageIndex>2 || status==="completed";
+    const terminal=["done","partial","empty","failed","budget_blocked"].includes(value.status);
+    const done=terminal || stageIndex>2 || status==="completed";
     const running=!done && stageIndex===2;
     el.classList.toggle("done",done);
     el.classList.toggle("running",running);
     el.classList.toggle("live-source",live);
     let state=done?"готово":running?"исследует":"ожидает";
     if(live){
-      if(value.status==="failed") state="LIVE · fallback";
+      if(value.status==="failed") state="LIVE · ошибка";
+      else if(value.status==="partial") state="LIVE · частично";
+      else if(value.status==="empty") state="LIVE · нет данных";
       else if(value.status==="budget_blocked") state="LIVE · budget";
       else state="LIVE · "+state;
     }else if(done){
@@ -517,23 +520,29 @@ async function showLiveEvidence(){
   button.textContent="Загрузка…";
   try{
     const data=await apiRequest("/api/research/"+activeRunId+"/live-evidence");
-    const products=(data.products||[]).slice(0,8);
+    const allProducts=data.products||[];
+    const products=[];
+    ["wb","ozon","amazon","lazada"].forEach(market=>{
+      products.push(...allProducts.filter(p=>p.market===market).slice(0,2));
+    });
     const calls=data.search_calls||[];
     const total=calls.reduce((sum,x)=>sum+Number(x.cost_usd||0),0);
     const items=products.length
       ? products.map(p=>{
           const raw=String(p.source_url||"");
           const href=/^https?:\/\//i.test(raw)?raw:"#";
+          const market=String(p.market||"").toUpperCase();
           const meta=[
+            market||null,
             p.price_text||null,
             p.rating!=null?("★ "+p.rating):null,
             p.review_count!=null?(p.review_count+" отзывов"):null
           ].filter(Boolean).join(" · ") || "данные из live search";
           return '<a class="live-evidence-item" href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer"><strong>'+escapeHtml(p.title||"Без названия")+'</strong><small>'+escapeHtml(meta)+'</small></a>';
         }).join("")
-      : '<div class="live-evidence-item"><strong>Live records пока нет</strong><small>Amazon Scout ещё выполняется или сработал fallback.</small></div>';
-    const costs=calls.map((c,i)=>'<span>search '+(i+1)+': $'+Number(c.cost_usd||0).toFixed(4)+'</span>').join("");
-    panel.innerHTML='<div class="live-evidence-head"><strong>Amazon · реальные найденные карточки</strong><span>'+products.length+' показано · $'+total.toFixed(4)+'</span></div><div class="live-evidence-list">'+items+'</div><div class="live-costs">'+costs+'</div>';
+      : '<div class="live-evidence-item"><strong>Live records пока нет</strong><small>Market Scouts ещё выполняются или сработал fallback.</small></div>';
+    const costs=calls.map((c,i)=>'<span>'+String(c.market||"").toUpperCase()+' · search '+(i+1)+': $'+Number(c.cost_usd||0).toFixed(4)+'</span>').join("");
+    panel.innerHTML='<div class="live-evidence-head"><strong>Live Market Scouts · реальные найденные карточки</strong><span>'+products.length+' показано · $'+total.toFixed(4)+'</span></div><div class="live-evidence-list">'+items+'</div><div class="live-costs">'+costs+'</div>';
     panel.hidden=false;
   }catch(err){
     showToast("Не удалось загрузить live evidence: "+err.message);
@@ -558,7 +567,8 @@ async function renderResultLiveEvidence(){
     const products=data.products||[];
     if(!calls.length && !products.length){panel.hidden=true;return;}
     const total=calls.reduce((sum,item)=>sum+Number(item.cost_usd||0),0);
-    panel.textContent="Amazon LIVE · "+products.length+" records · $"+total.toFixed(4);
+    const markets=[...new Set(products.map(p=>String(p.market||"").toUpperCase()).filter(Boolean))];
+    panel.textContent="LIVE · "+markets.length+" рынка · "+products.length+" records · $"+total.toFixed(4);
     panel.hidden=false;
   }catch(err){
     panel.hidden=true;
