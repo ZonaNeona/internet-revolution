@@ -6,6 +6,7 @@ import traceback
 from psycopg.types.json import Jsonb
 
 from backend.db import connect
+from backend.economics import calculate_preliminary_economics
 from backend.fixtures import DATASETS, STAGES, initial_scouts, initial_stats
 from backend.market_scout import _model as scout_model, run_live_market_scouts
 from backend.normalizer import build_archetypes, normalize_run
@@ -273,6 +274,7 @@ def process_job(job: dict):
     stage = STAGES[stage_index]
     live_scouts: dict[str, dict] = {}
     supplier_probe: dict[str, object] = {}
+    economics_result: dict[str, object] = {}
 
     if stage_index == 2:
         mark_market_stage_started(rid, stage)
@@ -303,6 +305,15 @@ def process_job(job: dict):
                 "records": 0,
                 "cost_usd": 0.0,
                 "errors": [f"{type(exc).__name__}: {exc}"],
+            }
+
+    if stage_index == 6:
+        try:
+            economics_result = calculate_preliminary_economics(rid, dataset_key)
+        except Exception as exc:
+            economics_result = {
+                "status": "insufficient_data",
+                "reason": f"{type(exc).__name__}: {exc}",
             }
 
     market_cost, live_calls, live_records = live_totals(rid)
@@ -374,6 +385,29 @@ def process_job(job: dict):
             + " offers · USD "
             + format(supplier_cost, ".4f")
         )
+    elif stage_index == 6 and economics_result:
+        econ_status = str(economics_result.get("status") or "insufficient_data")
+        if econ_status in ("ready", "partial"):
+            margin_min = economics_result.get("contribution_margin_min")
+            margin_max = economics_result.get("contribution_margin_max")
+            event_text = (
+                "economics "
+                + econ_status.upper()
+                + " → contribution margin "
+                + format(float(margin_min), ".1f")
+                + "…"
+                + format(float(margin_max), ".1f")
+                + "%"
+            )
+        else:
+            notes = economics_result.get("notes") or {}
+            reason = (
+                notes.get("retail_issue")
+                or notes.get("supplier_issue")
+                or economics_result.get("reason")
+                or "not enough comparable evidence"
+            )
+            event_text = "economics SAFE → insufficient_data · " + str(reason)
 
     completed = stage_index == len(STAGES) - 1
 
