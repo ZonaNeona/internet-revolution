@@ -70,3 +70,26 @@ body{overflow-x:hidden}button,input,textarea{font:inherit}button{color:inherit}.
 .floating-hermes small,.drawer-brand small,.drawer-context,.msg p,.tool-call,
 .suggestions button,.composer textarea,.drawer footer{font-size:10px}
 .opp-copy strong{font-size:12px}
+
+/* Live research evidence */
+.source-disclaimer{align-items:flex-start}
+.source-disclaimer span{flex:1}
+.source-disclaimer button{border:1px solid #28503e;background:#10241d;color:#71dbaa;border-radius:6px;padding:5px 7px;font-size:10px;white-space:nowrap;cursor:pointer}
+.scout.live-source{border-color:#2b5a45;box-shadow:inset 0 0 0 1px rgba(98,218,166,.05)}
+.scout.live-source .scout-state{color:#6edba9}
+.live-evidence-panel{margin:0 15px 14px;border:1px solid #1c332b;background:#0a1713;border-radius:8px;padding:9px}
+.live-evidence-panel[hidden]{display:none}
+.live-evidence-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.live-evidence-head strong{font-size:10px}
+.live-evidence-head span{font-size:10px;color:#68d6a3}
+.live-evidence-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.live-evidence-item{display:block;border:1px solid #1c3029;background:#0d1a16;border-radius:7px;padding:8px;text-decoration:none;color:#aebfb8}
+.live-evidence-item:hover{border-color:#345d4b}
+.live-evidence-item strong,.live-evidence-item small{display:block}
+.live-evidence-item strong{font-size:10px;line-height:1.35}
+.live-evidence-item small{font-size:10px;color:#667b73;margin-top:3px}
+.live-costs{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.live-costs span{font-size:10px;padding:4px 6px;border-radius:6px;background:#14261f;color:#72dbaa}
+@media(max-width:760px){.source-disclaimer{flex-wrap:wrap}.live-evidence-list{grid-template-columns:1fr}}
+
+.result-live-evidence{margin-bottom:10px;padding:12px 14px;font-size:11px;color:#9fcdb9;border-color:#28503e}
