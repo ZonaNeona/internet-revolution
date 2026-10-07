@@ -95,3 +95,9 @@ body{overflow-x:hidden}button,input,textarea{font:inherit}button{color:inherit}.
 .result-live-evidence{margin-bottom:10px;padding:12px 14px;font-size:11px;color:#9fcdb9;border-color:#28503e}
 
 .live-inline{display:inline-flex;align-items:center;border:1px solid #28503e;background:#123025;color:#6edca8;border-radius:99px;padding:3px 6px;font-size:10px;font-weight:600}
+
+/* Live-derived opportunities */
+.opp-card.live-derived{border-color:#29493b}
+.opp-card.live-derived:hover{border-color:#3b6a54}
+.evidence-grid a.evidence-item{text-decoration:none;color:inherit}
+.evidence-grid a.evidence-item:hover{border-color:#345d4b}
