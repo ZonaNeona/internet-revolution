@@ -8,8 +8,8 @@ from psycopg.types.json import Jsonb
 from backend.db import connect
 from backend.fixtures import DATASETS, STAGES, initial_scouts, initial_stats
 from backend.market_scout import _model as scout_model, run_live_market_scouts
-from backend.supplier_scout import run_live_supplier_probe
 from backend.normalizer import build_archetypes, normalize_run
+from backend.supplier_scout import run_live_supplier_probe
 
 POLL_SECONDS = 0.20
 NEXT_STAGE_DELAY = 0.75
