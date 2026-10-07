@@ -428,7 +428,8 @@ async function renderResults(){
   document.getElementById("resultQuery").textContent=activeQuery;
   document.getElementById("sumRecords").textContent=runStats.records ?? d.stats.records;
   document.getElementById("sumArchetypes").textContent=hasLive?liveOpportunityCount:(runStats.archetypes ?? d.stats.archetypes);
-  document.getElementById("sumSuppliers").textContent=hasLive?"—":(runStats.supplier_matches ?? d.stats.suppliers);
+  const supplierRecords=Number((activeRunState&&activeRunState.supplier_records)||0);
+  document.getElementById("sumSuppliers").textContent=hasLive?(supplierRecords||"—"):(runStats.supplier_matches ?? d.stats.suppliers);
 
   if(hasLive){
     const top=liveOpportunities[0];
@@ -510,10 +511,11 @@ function openLiveOpportunity(index){
     Number(o.member_count||0)+" live records · "+
     Number(o.market_count||0)+"/4 рынка · score "+o.score_version;
   document.getElementById("detailScore").textContent=Number(o.opportunity_score||0).toFixed(0);
+  const supplierRecords=Number((activeRunState&&activeRunState.supplier_records)||0);
   document.getElementById("marginRange").textContent="следующий этап";
   document.getElementById("retailRange").textContent="—";
-  document.getElementById("supplierPrice").textContent="—";
-  document.getElementById("supplierSignal").textContent="не подключён";
+  document.getElementById("supplierPrice").textContent=supplierRecords?"см. live offers":"—";
+  document.getElementById("supplierSignal").textContent=supplierRecords?(supplierRecords+" offers"):"нет evidence";
   document.getElementById("russiaGap").textContent=Number(o.russia_gap||0).toFixed(0)+" / 100";
 
   const reasons=[
@@ -537,7 +539,7 @@ function openLiveOpportunity(index){
     '<div class="signal-row ru"><span>Russia Gap</span><i><em style="width:'+Number(o.russia_gap||0)+'%"></em></i><b>'+Number(o.russia_gap||0).toFixed(0)+'</b></div>';
 
   document.getElementById("supplierBody").innerHTML=
-    '<tr><td colspan="6"><strong>Live Supplier Probe — следующий этап.</strong><br>Текущий live TOP‑5 не использует fixture-поставщиков.</td></tr>';
+    '<tr><td colspan="6"><strong>Загрузка live Supplier Probe…</strong></td></tr>';
 
   document.getElementById("evidenceGrid").innerHTML=(o.evidence||[]).map(item=>{
     const href=String(item.source_url||"").startsWith("http")?item.source_url:"#";
@@ -552,6 +554,59 @@ function openLiveOpportunity(index){
 
   lucide.createIcons();
   showScreen("detail");
+  loadLiveSupplierOffers(index);
+}
+
+async function loadLiveSupplierOffers(index){
+  const body=document.getElementById("supplierBody");
+  if(!body || !activeRunId)return;
+
+  if(index!==0){
+    body.innerHTML='<tr><td colspan="6"><strong>Deep Supplier Search для этого архетипа — следующий этап.</strong><br>V1 Supplier Probe сейчас выполняется для TOP‑1 возможности.</td></tr>';
+    return;
+  }
+
+  try{
+    const data=await apiRequest("/api/research/"+activeRunId+"/supplier-evidence");
+    const allOffers=data.offers||[];
+    const alibaba=allOffers.filter(x=>x.source==="alibaba");
+    const mic=allOffers.filter(x=>x.source==="made_in_china");
+    const offers=[...alibaba.slice(0,3),...mic.slice(0,2)];
+    const calls=data.search_calls||[];
+    const total=Number(calls.reduce((sum,x)=>sum+Number(x.cost_usd||0),0)).toFixed(4);
+    const cacheHits=calls.filter(x=>(x.response_meta||{}).cache_hit).length;
+
+    if(!offers.length){
+      body.innerHTML='<tr><td colspan="6"><strong>Supplier evidence пока не найден.</strong><br>Product Hunter не подменяет отсутствующие supplier fields выдуманными значениями.</td></tr>';
+      return;
+    }
+
+    body.innerHTML=offers.map(item=>{
+      const raw=String(item.source_url||"");
+      const href=raw.startsWith("http")?raw:"#";
+      const source=item.source==="made_in_china"?"Made-in-China":"Alibaba";
+      let supplier=item.supplier_name||"";
+      if(!supplier && href!=="#"){
+        try{
+          const host=new URL(href).hostname;
+          if(source==="Made-in-China") supplier=host.split(".")[0];
+        }catch(_){}
+      }
+      supplier=supplier||source+" supplier";
+      const customization=item.customization_text?"OEM/ODM":"LIVE";
+      return '<tr>'+
+        '<td><a href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer"><strong>'+escapeHtml(supplier)+'</strong></a><br><small>'+escapeHtml(item.product_title||"Supplier offer")+'</small></td>'+
+        '<td><span class="supplier-source">'+escapeHtml(source)+'</span></td>'+
+        '<td>'+escapeHtml(item.price_text||"—")+'</td>'+
+        '<td>'+escapeHtml(item.moq_text||"—")+'</td>'+
+        '<td>'+escapeHtml(item.lead_time_text||"—")+'</td>'+
+        '<td class="match">'+escapeHtml(customization)+'</td>'+
+      '</tr>';
+    }).join("")+
+      '<tr><td colspan="6"><small>LIVE Supplier Probe · '+offers.length+' показано · $'+total+' новых search-затрат'+(cacheHits?' · cache '+cacheHits:'')+'. Пустые поля означают, что источник их не подтвердил.</small></td></tr>';
+  }catch(err){
+    body.innerHTML='<tr><td colspan="6">Не удалось загрузить supplier evidence: '+escapeHtml(err.message)+'</td></tr>';
+  }
 }
 
 function openOpportunity(index){
@@ -599,12 +654,12 @@ function updateHermesContext(screen){
 
 const hermesAnswers=[
   [/как система начн|начнёт поиск/i,"Сначала я определяю intent и расширяю запрос в набор продуктовых гипотез. Затем запускаю четыре Market Scout с доменными ограничениями, собираю доступные карточки и snippets, нормализую признаки и только после этого строю архетипы.","resolve_intent → expand_queries → collect_markets"],
-  [/реальн.*данн|данные.*реаль/i,"WB, Ozon, Amazon и Lazada исследуются реальным OpenRouter web-search. URL и product records сохраняются как evidence; Normalizer и Opportunity Score уже считаются из этих live records. Supplier Probe и экономика пока modelled.","get_evidence_policy"],
-  [/стоит|стоимост|budget/i,"Измеренный свежий 4-market scan: 8 web-search вызовов, 35 product records и $0.05468. Повторный запуск в течение 6 часов использует cache и стоит $0 новых search-затрат. Supplier layer пока в эту цифру не входит.","get_budget_status"],
+  [/реальн.*данн|данные.*реаль/i,"WB, Ozon, Amazon и Lazada исследуются реальным OpenRouter web-search. Normalizer, Opportunity Score и Supplier Probe уже считаются из live evidence. Modelled пока остаётся только preliminary economics.","get_evidence_policy"],
+  [/стоит|стоимост|budget/i,"Свежий market scan стоит около $0.054 за 8 web-search вызовов. Supplier Probe добавляет около $0.015 за Alibaba + Made-in-China. Повтор в течение 6 часов использует cache и может стоить $0 новых search-затрат.","get_budget_status"],
   [/почему не парсим|весь маркетплейс/i,"Полный обход дорог, хрупок и часто блокируется. Product Hunter использует adaptive sampling: расширяет запросы, собирает разнообразную выборку и прекращает поиск, когда новые запросы перестают давать новые архетипы.","explain_sampling_strategy"],
   [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер выбирается по live-derived сигналам: foreign presence, Russia Gap, cross-market presence, review mass и feature recurrence. Supplier score пока не входит в live-формулу.","get_opportunity_score"],
   [/trend transfer/i,"Trend Transfer V1 — не прогноз продаж. Это индекс расхождения: архетип уже силён на зарубежных рынках, но заметно слабее представлен в РФ. Исторический lead/lag появится только после накопления собственных snapshots.","explain_trend_transfer"],
-  [/поставщик/i,"Supplier Probe строит запросы из спецификации архетипа, а не из названия branded SKU. Потом сравнивает normalized features и semantic similarity на Alibaba и Made-in-China.","probe_suppliers"],
+  [/поставщик/i,"Supplier Probe уже LIVE: ищет supplier product pages на Alibaba и Made-in-China. Price/MOQ сохраняются только если они видны в evidence; отсутствующие поля остаются пустыми.","probe_suppliers"],
   [/экономик.*модел|модельн.*эконом/i,"В V1 retail price и supplier price могут приходить из публичных источников, а логистика, комиссии, реклама и возвраты — modelled assumptions. Они явно помечаются и используются только для ранжирования.","explain_economics_assumptions"]
 ];
 
@@ -612,7 +667,7 @@ function sendHermes(text){
   if(!text.trim())return;
   const chat=document.getElementById("chat");
   chat.insertAdjacentHTML("beforeend",'<div class="msg user"><div><p>'+escapeHtml(text)+'</p></div></div>');
-  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence, нормализация, архетипы и TOP‑5 уже live-derived. Supplier Probe и preliminary economics пока остаются modelled до следующего этапа.","Product Hunter context"];
+  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence, нормализация, архетипы, TOP‑5 и Supplier Probe уже LIVE. Modelled пока остаётся только preliminary economics.","Product Hunter context"];
   setTimeout(()=>{
     chat.insertAdjacentHTML("beforeend",'<div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>'+answer[1]+'</p><div class="tool-call">'+answer[2]+'</div></div></div>');
     lucide.createIcons();chat.scrollTop=chat.scrollHeight;
