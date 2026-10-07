@@ -146,7 +146,7 @@
             <div class="scout" data-scout="amazon"><header><b>Amazon</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
             <div class="scout" data-scout="lazada"><header><b>Lazada</b><span class="scout-state">ожидает</span></header><strong class="scout-count">0</strong><small>полезных product records</small><div class="mini-progress"><i></i></div><footer><span>0 запросов</span><span>0 страниц</span></footer></div>
           </div>
-          <div class="source-disclaimer"><i data-lucide="info"></i><span>Market evidence уже LIVE: WB, Ozon, Amazon и Lazada исследуются через OpenRouter web-search. Архетипы, ranking и Supplier Probe на текущем этапе ещё modelled prototype.</span><button type="button" id="liveEvidenceBtn">Показать live evidence</button></div>
+          <div class="source-disclaimer"><i data-lucide="info"></i><span>WB, Ozon, Amazon и Lazada исследуются через LIVE web-search. Normalizer, архетипы, Opportunity Score и Supplier Probe уже работают на сохранённом evidence.</span><button type="button" id="liveEvidenceBtn">Показать live evidence</button></div>
           <div class="live-evidence-panel" id="liveEvidencePanel" hidden></div>
         </article>
 
@@ -160,8 +160,8 @@
         <article class="panel stat-card"><span>Поисковых гипотез</span><strong id="statQueries">0</strong><small>RU + EN · по 4 рынкам</small></article>
         <article class="panel stat-card"><span>Найдено live records</span><strong id="statPages">0</strong><small>4 market scouts</small></article>
         <article class="panel stat-card"><span>Уникальных product records</span><strong id="statRecords">0</strong><small>live evidence</small></article>
-        <article class="panel stat-card"><span>Товарных архетипов</span><strong id="statArchetypes">0</strong><small>modelled prototype</small></article>
-        <article class="panel stat-card"><span>Кандидатов после screening</span><strong id="statCandidates">0</strong><small>modelled prototype</small></article>
+        <article class="panel stat-card"><span>Товарных архетипов</span><strong id="statArchetypes">0</strong><small>live-derived</small></article>
+        <article class="panel stat-card"><span>Кандидатов после screening</span><strong id="statCandidates">0</strong><small>live-derived</small></article>
       </div>
 
       <div class="run-actions">
@@ -177,7 +177,7 @@
         <div>
           <span class="eyebrow">PRODUCT HUNTER REPORT</span>
           <h1>TOP‑5 товарных возможностей</h1>
-          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">market + scoring — LIVE · suppliers/economics — modelled</span></p>
+          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">market + scoring + suppliers — LIVE · economics — modelled</span></p>
         </div>
         <div class="result-summary">
           <div><span>Исследовано</span><strong id="sumRecords">214</strong><small>product records</small></div>
@@ -198,7 +198,7 @@
 
       <div class="method-note">
         <i data-lucide="shield-check"></i>
-        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts, нормализация, товарные архетипы и Opportunity Score уже строятся из реальных web-search records. Modelled остаются Supplier Probe и preliminary economics — они подключаются следующими.</p></div>
+        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts, нормализация, товарные архетипы, Opportunity Score и Supplier Probe уже строятся из реальных web-search records. Modelled остаётся только preliminary economics.</p></div>
       </div>
     </div>
   </section>
@@ -229,7 +229,7 @@
 
       <div class="detail-grid">
         <article class="panel">
-          <div class="panel-head"><div><span class="eyebrow">SUPPLIER PROBE</span><h2>TOP‑5 поставщиков</h2></div><span class="modelled-label">demo fixtures</span></div>
+          <div class="panel-head"><div><span class="eyebrow">SUPPLIER PROBE</span><h2>TOP‑5 поставщиков</h2></div><span class="live-inline">LIVE evidence</span></div>
           <div class="supplier-table-wrap">
             <table class="supplier-table">
               <thead><tr><th>Поставщик</th><th>Площадка</th><th>Цена</th><th>MOQ</th><th>Lead time</th><th>Match</th></tr></thead>
@@ -265,7 +265,7 @@
   <header><div class="drawer-brand"><span><i data-lucide="bot"></i></span><div><strong>Hermes</strong><small><i></i> контекст Product Hunter</small></div></div><button id="drawerClose"><i data-lucide="x"></i></button></header>
   <div class="drawer-context" id="drawerContext"><i data-lucide="database"></i><span>Контекст: новый поиск</span></div>
   <div class="chat" id="chat">
-    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: запускаю LIVE Market Scouts, нормализую товары, строю архетипы и рассчитываю Opportunity Score. Supplier Probe и экономика пока остаются modelled и подключаются следующими.</p></div></div>
+    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: запускаю LIVE Market Scouts, нормализую товары, строю архетипы, считаю Opportunity Score и ищу поставщиков. Modelled пока остаётся только preliminary economics.</p></div></div>
   </div>
   <div class="suggestions" id="suggestions"></div>
   <form class="composer" id="chatForm"><textarea id="chatInput" rows="1" placeholder="Спросите про сигналы, рынки или поставщиков…"></textarea><button><i data-lucide="arrow-up"></i></button></form>
@@ -273,6 +273,6 @@
 </aside>
 
 <div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
-<script src="/app.js?v=22"></script>
+<script src="/app.js?v=23"></script>
 </body>
 </html>
