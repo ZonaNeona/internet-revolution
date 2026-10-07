@@ -63,16 +63,22 @@ def stage_state(dataset_key: str, stage_index: int, live_scouts: dict | None = N
                 })
 
     if stage_index >= 3:
-        stats["pages"] = dataset["stats"]["pages"]
-        stats["records"] = dataset["stats"]["records"]
+        live_records = sum(
+            int(value.get("records", 0) or 0)
+            for value in (live_scouts or {}).values()
+            if value.get("enabled")
+        )
+        if live_records:
+            stats["pages"] = live_records
+            stats["records"] = live_records
+        else:
+            stats["pages"] = dataset["stats"]["pages"]
+            stats["records"] = dataset["stats"]["records"]
     if stage_index >= 4:
         stats["archetypes"] = dataset["stats"]["archetypes"]
     if stage_index >= 5:
         stats["candidates"] = dataset["stats"]["candidates"]
         stats["supplier_matches"] = dataset["stats"]["supplier_matches"]
-    if stage_index >= 7:
-        stats = dict(dataset["stats"])
-
     return stats, scouts
 
 
