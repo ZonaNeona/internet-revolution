@@ -133,8 +133,41 @@ Product Hunter не выдаёт modelled значения за реальные
 - до $3.00 live-search расходов в сутки;
 - общий hard cap интерфейса — $1.50 на глубокий research run.
 
+## Live Normalizer / Archetype / Signal Engine
+
+После market search Product Hunter уже не использует fixture TOP-5 для поддержанных demo-категорий.
+
+V1 pipeline:
+
+- raw_products → deterministic relevance filter;
+- canonical title / brand / features;
+- rule-based archetype assignment для vacuum / bath / led;
+- cross-market aggregation;
+- Market Presence по каждому рынку;
+- Foreign Signal;
+- Russia Signal;
+- Russia Gap;
+- Cross-market Presence;
+- Review Mass Score;
+- Feature Recurrence;
+- Opportunity Score signals_v1.
+
+Контрольный cached run «Светодиодные ленты»:
+
+- 30 raw live records;
+- 24 релевантных после normalizer;
+- 5 live archetypes;
+- TOP-1: RGBIC + Matter / Thread;
+- Opportunity Score 84.12;
+- Russia Gap 100;
+- evidence содержит реальные Amazon / Ozon / Lazada URL;
+- повторный market layer = $0 новых search-расходов благодаря 6-часовому cache;
+- полный cached pipeline до TOP-5 ≈ 8.3 секунды.
+
+Текущий archetype engine V1 детерминированный и оптимизирован под три demo-категории. Универсальный semantic/embedding слой остаётся следующим расширением.
+
 ## Следующий этап
 
-Реализовать Product Normalizer и Archetype Engine поверх сохранённых live records: canonical title, нормализация бренда/характеристик/единиц, дедупликация, embeddings и semantic clustering. После этого TOP-5 начнёт строиться из реального market research, а не fixture/modelled слоя.
+Подключить live Supplier Probe к stage 5: Alibaba / Made-in-China → supplier offers → MOQ / price / lead time → Supplier Score. После этого preliminary economics сможет использовать реальные supplier inputs.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
