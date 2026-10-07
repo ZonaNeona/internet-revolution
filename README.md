@@ -98,24 +98,29 @@ PM2:
 
 Конфигурация: `ecosystem.config.cjs`.
 
-## Ограничения текущего demo
+## Live OpenRouter research
 
-У проекта нет платных marketplace analytics API.
+Amazon Market Scout уже работает на реальном OpenRouter web-search.
 
-Поэтому demo:
+Первый измеренный live run:
 
-- не показывает выдуманные продажи;
-- использует fixture-driven product records;
-- показывает собственные Market Signal / Trend Transfer / Russia Gap / Supplier Availability;
-- явно маркирует модельные допущения;
-- готов к подключению OpenRouter web research tools следующим этапом.
+- 3 Amazon search calls;
+- 14 уникальных product records после дедупликации;
+- фактическая стоимость $0.024472;
+- search_calls, raw_products и source evidence сохранены в PostgreSQL;
+- Budget Guard показывает actual spend;
+- публичный UI умеет показывать live evidence.
+
+WB, Ozon и Lazada пока остаются fixture-driven. Product Hunter не выдаёт fixture/modelled значения за реальные продажи.
+
+Текущие лимиты production demo:
+
+- до $0.08 на live Amazon Scout одного run;
+- до $3.00 live-search расходов в сутки;
+- общий hard cap интерфейса — $1.50 на глубокий research run.
 
 ## Следующий этап
 
-Подключить первый реальный OpenRouter Market Scout:
-
-`query expansion → web search → structured extraction → source evidence → raw_products`
-
-После этого fixture-данные начнут поэтапно заменяться настоящими web-research records.
+Расширить тот же Market Scout контракт на WB/Ozon/Lazada, затем подключить реальный Supplier Probe. После этого fixture-данные будут заменяться live records по одному источнику без изменения остальной архитектуры.
 
 Полный roadmap: `IMPLEMENTATION_PLAN.md`.
