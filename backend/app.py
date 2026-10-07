@@ -12,6 +12,8 @@ from psycopg.types.json import Jsonb
 from .db import connect
 from .fixtures import DATASETS, STAGES, dataset_key_for, initial_scouts, initial_stats
 from .market_scout import live_evidence
+from .normalizer import get_live_opportunities
+from .supplier_scout import supplier_evidence
 
 app = FastAPI(title="Product Hunter API", version="0.2.0", docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
 
@@ -24,7 +26,12 @@ def _public_run(row: dict, events: list[dict] | None = None) -> dict:
     if not row:
         raise HTTPException(status_code=404, detail="Research run not found")
     item = dict(row)
-    for key in ("budget_usd", "estimated_cost_usd", "actual_cost_usd"):
+    for key in (
+        "budget_usd",
+        "estimated_cost_usd",
+        "actual_cost_usd",
+        "supplier_actual_cost_usd",
+    ):
         if isinstance(item.get(key), Decimal):
             item[key] = float(item[key])
     if events is not None:
@@ -66,7 +73,10 @@ def list_research(limit: int = Query(default=10, ge=1, le=50)):
         rows = conn.execute(
             """
             SELECT id,query,dataset_key,status,stage_index,stage_key,stage_title,
-                   progress,estimated_cost_usd,created_at,updated_at,completed_at
+                   progress,estimated_cost_usd,actual_cost_usd,
+                   live_search_calls,live_records,
+                   supplier_actual_cost_usd,supplier_search_calls,supplier_records,
+                   created_at,updated_at,completed_at
             FROM research_runs
             ORDER BY created_at DESC
             LIMIT %s
@@ -145,6 +155,25 @@ def get_research(run_id: uuid.UUID):
     return _public_run(row, events)
 
 
+@app.get("/api/research/{run_id}/live-opportunities")
+def get_research_live_opportunities(
+    run_id: uuid.UUID,
+    limit: int = Query(default=5, ge=1, le=20),
+):
+    rid = str(run_id)
+    with connect() as conn:
+        if not _get_run(conn, rid):
+            raise HTTPException(status_code=404, detail="Research run not found")
+        total = conn.execute(
+            "SELECT COUNT(*) AS count FROM opportunity_scores WHERE run_id=%s",
+            (rid,),
+        ).fetchone()
+    return {
+        "count": int(total["count"] or 0),
+        "items": jsonable_encoder(get_live_opportunities(rid, limit)),
+    }
+
+
 @app.get("/api/research/{run_id}/live-evidence")
 def get_live_evidence(run_id: uuid.UUID):
     rid = str(run_id)
@@ -152,6 +181,15 @@ def get_live_evidence(run_id: uuid.UUID):
         if not _get_run(conn, rid):
             raise HTTPException(status_code=404, detail="Research run not found")
     return jsonable_encoder(live_evidence(rid))
+
+
+@app.get("/api/research/{run_id}/supplier-evidence")
+def get_supplier_evidence(run_id: uuid.UUID):
+    rid = str(run_id)
+    with connect() as conn:
+        if not _get_run(conn, rid):
+            raise HTTPException(status_code=404, detail="Research run not found")
+    return jsonable_encoder(supplier_evidence(rid))
 
 
 @app.get("/api/research/{run_id}/events")
@@ -177,8 +215,9 @@ def skip_research(run_id: uuid.UUID):
             for name, values in dataset["scouts"].items()
         }
         current_scouts = run.get("scouts") or {}
-        if (current_scouts.get("amazon") or {}).get("source") == "live":
-            final_scouts["amazon"] = current_scouts["amazon"]
+        for market, value in current_scouts.items():
+            if market in final_scouts and (value or {}).get("source") == "live":
+                final_scouts[market] = value
         actual_cost = float(run.get("actual_cost_usd") or 0)
         final_stage = STAGES[-1]
         conn.execute(
