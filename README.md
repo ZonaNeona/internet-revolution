@@ -121,9 +121,9 @@ PM2:
 - Budget Guard показывает actual provider spend;
 - публичный UI показывает live evidence по каждому рынку.
 
-Повторный run той же категории в течение 6 часов использует cached evidence: контрольный повтор сохранил те же 38 records при $0.00 новых market-search расходов и завершился за 7.4 секунды.
+Повторный run той же категории в течение 6 часов использует cached evidence: контрольные повторы возвращают 36–38 live records при $0.00 новых market-search расходов и завершаются примерно за 7–8 секунд.
 
-Ингestion не зависит от идеального JSON модели: если structured output повреждён, Product Hunter извлекает product URL из OpenRouter search annotations. Числовые поля нормализуются перед записью в PostgreSQL.
+Product records нормализуются перед записью в PostgreSQL: поддерживаются альтернативные поля title/name, строковые rating/review count и неполные marketplace records. Если structured extraction невалиден, call фиксируется как failed и не подменяется выдуманными данными.
 
 Product Hunter не выдаёт modelled значения за реальные продажи. Market Signal / Trend Transfer / Russia Gap остаются собственными индексами системы.
 
