@@ -8,6 +8,8 @@ from psycopg.types.json import Jsonb
 from backend.db import connect
 from backend.fixtures import DATASETS, STAGES, initial_scouts, initial_stats
 from backend.market_scout import _model as scout_model, run_live_market_scouts
+from backend.supplier_scout import run_live_supplier_probe
+from backend.normalizer import build_archetypes, normalize_run
 
 POLL_SECONDS = 0.20
 NEXT_STAGE_DELAY = 0.75
@@ -101,6 +103,46 @@ def live_totals(run_id: str) -> tuple[float, int, int]:
     return float(row["cost"] or 0), int(row["calls"] or 0), int(products["count"] or 0)
 
 
+def supplier_totals(run_id: str) -> tuple[float, int, int]:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COALESCE(SUM(cost_usd),0) AS cost,
+                COUNT(*) FILTER (WHERE status IN ('done','failed')) AS calls
+            FROM supplier_search_calls
+            WHERE run_id=%s
+            """,
+            (run_id,),
+        ).fetchone()
+        offers = conn.execute(
+            "SELECT COUNT(*) AS count FROM supplier_offers WHERE run_id=%s",
+            (run_id,),
+        ).fetchone()
+    return float(row["cost"] or 0), int(row["calls"] or 0), int(offers["count"] or 0)
+
+
+def derived_counts(run_id: str) -> tuple[int, int, int]:
+    with connect() as conn:
+        normalized = conn.execute(
+            "SELECT COUNT(*) AS count FROM normalized_products WHERE run_id=%s",
+            (run_id,),
+        ).fetchone()
+        archetypes = conn.execute(
+            "SELECT COUNT(*) AS count FROM product_archetypes WHERE run_id=%s",
+            (run_id,),
+        ).fetchone()
+        opportunities = conn.execute(
+            "SELECT COUNT(*) AS count FROM opportunity_scores WHERE run_id=%s",
+            (run_id,),
+        ).fetchone()
+    return (
+        int(normalized["count"] or 0),
+        int(archetypes["count"] or 0),
+        int(opportunities["count"] or 0),
+    )
+
+
 def event_message(dataset_key: str, stage_index: int, live_scouts: dict | None = None) -> str:
     dataset = DATASETS[dataset_key]
     stats = dataset["stats"]
@@ -181,6 +223,26 @@ def mark_market_stage_started(run_id: str, stage: dict) -> None:
         )
 
 
+def mark_supplier_stage_started(run_id: str, stage: dict) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE research_runs
+            SET stage_index=5,stage_key=%s,stage_title=%s,
+                stage_description=%s,progress=72,updated_at=now()
+            WHERE id=%s
+            """,
+            (stage["key"], stage["title"], stage["description"], run_id),
+        )
+        conn.execute(
+            """
+            INSERT INTO research_events(run_id,event_type,stage_index,actor,message,meta)
+            VALUES (%s,'stage',5,'Hermes','probe_suppliers → Alibaba + Made-in-China LIVE запущены',%s)
+            """,
+            (run_id, Jsonb({"stage": stage["key"], "progress": 72})),
+        )
+
+
 def process_job(job: dict):
     rid = str(job["run_id"])
     stage_index = int(job["stage_index"])
@@ -210,6 +272,7 @@ def process_job(job: dict):
     dataset_key = run["dataset_key"]
     stage = STAGES[stage_index]
     live_scouts: dict[str, dict] = {}
+    supplier_probe: dict[str, object] = {}
 
     if stage_index == 2:
         mark_market_stage_started(rid, stage)
@@ -228,7 +291,32 @@ def process_job(job: dict):
                 for market in ("wb", "ozon", "amazon", "lazada")
             }
 
-    actual_cost, live_calls, live_records = live_totals(rid)
+    if stage_index == 5:
+        mark_supplier_stage_started(rid, stage)
+        try:
+            supplier_probe = run_live_supplier_probe(rid, dataset_key)
+        except Exception as exc:
+            supplier_probe = {
+                "enabled": True,
+                "status": "failed",
+                "sources": {},
+                "records": 0,
+                "cost_usd": 0.0,
+                "errors": [f"{type(exc).__name__}: {exc}"],
+            }
+
+    market_cost, live_calls, live_records = live_totals(rid)
+    supplier_cost, supplier_calls, supplier_records = supplier_totals(rid)
+    actual_cost = market_cost + supplier_cost
+
+    derive_meta: dict[str, int] = {}
+    if stage_index == 3 and live_records:
+        derive_meta = normalize_run(rid, dataset_key)
+    elif stage_index == 4 and live_records:
+        normalized_count, _, _ = derived_counts(rid)
+        if normalized_count == 0:
+            normalize_run(rid, dataset_key)
+        derive_meta = build_archetypes(rid, dataset_key)
 
     if stage_index > 2:
         previous_scouts = run.get("scouts") or {}
@@ -243,6 +331,50 @@ def process_job(job: dict):
                 }
 
     stats, scouts = stage_state(dataset_key, stage_index, live_scouts)
+    normalized_count, archetype_count, opportunity_count = derived_counts(rid)
+    if normalized_count:
+        stats["records"] = normalized_count
+    if archetype_count:
+        stats["archetypes"] = archetype_count
+    if opportunity_count:
+        stats["candidates"] = opportunity_count
+    if supplier_records:
+        stats["supplier_matches"] = supplier_records
+
+    event_text = event_message(dataset_key, stage_index, live_scouts)
+    if stage_index == 3 and normalized_count:
+        event_text = (
+            "normalize_products LIVE → "
+            + str(normalized_count)
+            + " relevant records из "
+            + str(live_records)
+        )
+    elif stage_index == 4 and archetype_count:
+        event_text = (
+            "cluster_archetypes LIVE → "
+            + str(archetype_count)
+            + " архетипов · "
+            + str(opportunity_count)
+            + " scored"
+        )
+    elif stage_index == 5 and supplier_probe.get("enabled"):
+        sources = supplier_probe.get("sources") or {}
+        source_parts = []
+        for source in ("alibaba", "made_in_china"):
+            item = sources.get(source) or {}
+            if item.get("enabled"):
+                source_parts.append(source + " " + str(item.get("records", 0)))
+        event_text = (
+            "probe_suppliers LIVE → "
+            + ", ".join(source_parts)
+            + " · "
+            + str(supplier_calls)
+            + " search calls · "
+            + str(supplier_records)
+            + " offers · USD "
+            + format(supplier_cost, ".4f")
+        )
+
     completed = stage_index == len(STAGES) - 1
 
     with connect() as conn:
@@ -278,6 +410,8 @@ def process_job(job: dict):
                         market for market, value in live_scouts.items()
                         if value.get("enabled")
                     ],
+                    "live_supplier": bool(supplier_probe.get("enabled") or supplier_records),
+                    "supplier_records": supplier_records,
                 }),
                 completed,
                 rid,
@@ -291,13 +425,16 @@ def process_job(job: dict):
             (
                 rid,
                 stage_index,
-                event_message(dataset_key, stage_index, live_scouts),
+                event_text,
                 Jsonb({
                     "stage": stage["key"],
                     "progress": stage["progress"],
                     "actual_cost_usd": actual_cost,
                     "live_search_calls": live_calls,
                     "live_records": live_records,
+                    "supplier_cost_usd": supplier_cost,
+                    "supplier_search_calls": supplier_calls,
+                    "supplier_records": supplier_records,
                 }),
             ),
         )
@@ -325,6 +462,9 @@ def process_job(job: dict):
                     "actual_cost_usd": actual_cost,
                     "live_search_calls": live_calls,
                     "live_records": live_records,
+                    "supplier_cost_usd": supplier_cost,
+                    "supplier_search_calls": supplier_calls,
+                    "supplier_records": supplier_records,
                 })),
             )
 
@@ -388,6 +528,17 @@ def recover_stale_jobs():
         conn.execute(
             """
             UPDATE search_calls
+            SET status='failed',completed_at=now(),
+                error=CASE
+                    WHEN COALESCE(error,'') = '' THEN '[interrupted by worker restart]'
+                    ELSE error || ' [interrupted by worker restart]'
+                END
+            WHERE status='running'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE supplier_search_calls
             SET status='failed',completed_at=now(),
                 error=CASE
                     WHEN COALESCE(error,'') = '' THEN '[interrupted by worker restart]'
