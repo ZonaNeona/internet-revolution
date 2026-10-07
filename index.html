@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <link rel="stylesheet" href="/app.css?v=14">
+  <link rel="stylesheet" href="/app.css?v=15">
 </head>
 <body>
 <header class="topbar">
@@ -177,7 +177,7 @@
         <div>
           <span class="eyebrow">PRODUCT HUNTER REPORT</span>
           <h1>TOP‑5 товарных возможностей</h1>
-          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">TOP‑5 / scoring / suppliers — modelled prototype</span></p>
+          <p>Запрос: <b id="resultQuery">Вертикальные пылесосы</b> · <span class="live-inline">market evidence — LIVE</span> · <span class="modelled-label">market + scoring — LIVE · suppliers/economics — modelled</span></p>
         </div>
         <div class="result-summary">
           <div><span>Исследовано</span><strong id="sumRecords">214</strong><small>product records</small></div>
@@ -198,7 +198,7 @@
 
       <div class="method-note">
         <i data-lucide="shield-check"></i>
-        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts WB/Ozon/Amazon/Lazada уже собирают реальные web-search records и evidence. Текущие Opportunity Score, Trend Transfer, архетипы и экономика пока fixture/modelled — следующий этап заменит их расчётами из сохранённых live records.</p></div>
+        <div><strong>Что здесь уже live, а что ещё modelled?</strong><p>Market Scouts, нормализация, товарные архетипы и Opportunity Score уже строятся из реальных web-search records. Modelled остаются Supplier Probe и preliminary economics — они подключаются следующими.</p></div>
       </div>
     </div>
   </section>
@@ -265,7 +265,7 @@
   <header><div class="drawer-brand"><span><i data-lucide="bot"></i></span><div><strong>Hermes</strong><small><i></i> контекст Product Hunter</small></div></div><button id="drawerClose"><i data-lucide="x"></i></button></header>
   <div class="drawer-context" id="drawerContext"><i data-lucide="database"></i><span>Контекст: новый поиск</span></div>
   <div class="chat" id="chat">
-    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: расширяю запрос, запускаю LIVE Market Scouts и собираю evidence. Рыночный слой уже реальный; архетипы, scoring и Supplier Probe пока остаются modelled prototype.</p></div></div>
+    <div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>Я управляю исследованием: запускаю LIVE Market Scouts, нормализую товары, строю архетипы и рассчитываю Opportunity Score. Supplier Probe и экономика пока остаются modelled и подключаются следующими.</p></div></div>
   </div>
   <div class="suggestions" id="suggestions"></div>
   <form class="composer" id="chatForm"><textarea id="chatInput" rows="1" placeholder="Спросите про сигналы, рынки или поставщиков…"></textarea><button><i data-lucide="arrow-up"></i></button></form>
@@ -273,6 +273,6 @@
 </aside>
 
 <div class="toast" id="toast"><i data-lucide="circle-check"></i><span></span></div>
-<script src="/app.js?v=20"></script>
+<script src="/app.js?v=22"></script>
 </body>
 </html>
