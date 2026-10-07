@@ -48,12 +48,13 @@ def review(run_id):
                 data=dict(row.get('raw_data') or {},verification=check,company_key=company_key(row))
                 conn.execute('UPDATE supplier_offers SET raw_data=%s WHERE id=%s',(Jsonb(data),row['id']))
 
-def shortlist(offers):
+def shortlist(offers,include_unverified=False):
     seen=set(); result=[]
     for offer in sorted(offers,key=lambda r:((r.get('raw_data') or {}).get('verification',{}).get('match')!='confirmed',not bool(r.get('price_text')))):
         data=offer.get('raw_data') or {}
         verification=data.get('verification') or {}
-        if verification.get('match') not in ('confirmed','partial') or not verification.get('matched_features'):
+        if verification.get('match')=='rejected': continue
+        if not include_unverified and (verification.get('match') not in ('confirmed','partial') or not verification.get('matched_features')):
             continue
         key=company_key(offer)
         if not key or key in seen:

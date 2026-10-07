@@ -5,7 +5,7 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const safeURL=x=>/^https?:\/\//i.test(String(x))?esc(x):'#';
 const name=m=>S.catalog.find(x=>x.id===m)?.label||m;
 const fmt=x=>x==null?'—':Number(x).toLocaleString('ru-RU',{maximumFractionDigits:2});
-const quality={pending:'Исследование продолжается',partial:'Частичный результат',complete:'Исследование завершено',insufficient_data:'Недостаточно данных'};
+const quality={pending:'Исследование продолжается',partial:'Частичный результат',complete:'Исследование завершено',insufficient_data:'Недостаточно данных',legacy:'Архивный отчёт V1 · сохранён без пересчёта'};
 const decisionLabel=x=>({NEEDS_DATA:'Нужны данные',TEST:'Можно тестировать',WATCH:'Наблюдать', 'NO-GO':'Сценарий невыгоден'}[x]||x);
 const statuses={waiting:'Ожидает',running:'Исследует',done:'Готово',partial:'Частично',empty:'Нет данных',failed:'Ошибка',budget_blocked:'Лимит расходов',disabled:'Отключено',no_query_plan:'Нет поисковых запросов'};
 function notice(t){const el=document.getElementById('toast');el.querySelector('span').textContent=t;el.classList.add('show');clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.classList.remove('show'),7000);}

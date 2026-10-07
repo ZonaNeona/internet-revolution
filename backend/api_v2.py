@@ -71,6 +71,8 @@ def read_run(rid):
             row['cost_breakdown']=costs
             row['actual_cost_usd']=costs['confirmed_usd']+costs['uncertain_usd']
             row['result_summary']=dict(row.get('result_summary') or {},cost_has_estimates=bool(costs['uncertain_usd']))
+        elif row['status']=='completed':
+            row['quality']='legacy'
     return jsonable_encoder(dict(row,events=events))
 
 @app.get('/api/health')
@@ -118,8 +120,8 @@ def evidence(run_id:uuid.UUID):
 
 @app.get('/api/research/{run_id}/supplier-evidence')
 def suppliers(run_id:uuid.UUID,archetype_id:int|None=Query(None,ge=1)):
-    read_run(str(run_id)); data=supplier_evidence(str(run_id),archetype_id)
-    data['shortlist']=shortlist(data['offers']); data['shortage']=max(0,3-len(data['shortlist']))
+    run=read_run(str(run_id)); data=supplier_evidence(str(run_id),archetype_id)
+    data['shortlist']=shortlist(data['offers'],include_unverified=run['pipeline_version']==1); data['shortage']=max(0,3-len(data['shortlist']))
     return jsonable_encoder(data)
 
 @app.get('/api/research/{run_id}/economics')

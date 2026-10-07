@@ -75,6 +75,7 @@ class PureTests(unittest.TestCase):
     def test_companies(self):
         offers=[dict(supplier_name='ABC Ltd',source_url='https://www.alibaba.com/product-detail/a',raw_data={}),dict(supplier_name='ABC Ltd',source_url='https://www.alibaba.com/product-detail/b',raw_data={}),dict(supplier_name=None,source_url='https://www.alibaba.com/product-detail/c',raw_data={})]
         self.assertEqual(len(shortlist(offers)),0)
+        self.assertEqual(len(shortlist(offers,include_unverified=True)),1)
         for item in offers: item['raw_data']={'verification':{'match':'confirmed','matched_features':'Напряжение и комплектация'}}
         offers[1]['supplier_name']='ABC Co., Limited'
         self.assertEqual(len(shortlist(offers)),1)
@@ -90,6 +91,11 @@ class DatabaseTests(unittest.TestCase):
             for rid in self.ids: conn.execute('DELETE FROM research_runs WHERE id=%s',(rid,))
     def new(self,mode='category',markets=['wb','amazon']):
         r=create(ResearchCreate(query='Тест: дорожная подушка',analysis_mode=mode,selected_markets=markets));self.ids.append(r['id']);return r
+    def test_legacy_result_stays_archived(self):
+        from backend.api_v2 import read_run
+        r=self.new()
+        with connect() as c:c.execute("UPDATE research_runs SET pipeline_version=1,status='completed' WHERE id=%s",(r['id'],))
+        self.assertEqual(read_run(r['id'])['quality'],'legacy')
     def test_structured_retry_uses_run_scoped_cache(self):
         import io,json
         from backend.structured import complete
