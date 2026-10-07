@@ -642,7 +642,7 @@ Fixture-driven.
 
 ## Этап 4 — OpenRouter Research Tools
 
-**Статус: ✅ live market-search реализован на всех четырёх рынках.** WB, Ozon, Amazon и Lazada работают через реальные OpenRouter web-search calls. Ozon использует Parallel Search, остальные рынки — Exa. Scout extractor — qwen/qwen3-30b-a3b-instruct-2507 без reasoning. Контрольный полный run «Коврики для ванной»: 4 рынка → 8/8 успешных search calls → 38 уникальных records → $0.054027 → 17.5 секунды до TOP-5. Повтор той же категории в течение 6 часов использует cached evidence: 38 records при $0.00 новых market-search расходов и 7.4 секунды. Search calls, actual provider cost, raw products и source evidence сохраняются в PostgreSQL. Есть annotation fallback, numeric normalization, retry semantics, cache reuse и budget reservation.
+**Статус: ✅ live market-search реализован на всех четырёх рынках.** WB, Ozon, Amazon и Lazada работают через реальные OpenRouter web-search calls. Ozon использует Parallel Search, остальные рынки — Exa. Scout extractor — qwen/qwen3-30b-a3b-instruct-2507 без reasoning. Контрольные fresh-runs: 4 рынка → 8/8 успешных search calls → 35–38 уникальных records → около $0.054 market-search spend. Время зависит от внешнего search provider и наблюдалось примерно в диапазоне 17–64 секунд. Повтор той же категории в течение 6 часов использует cached evidence: 36–38 records при $0.00 новых market-search расходов и около 7–8 секунд. Search calls, actual provider cost, raw products и source evidence сохраняются в PostgreSQL. Есть numeric normalization, retry semantics, cache reuse и budget reservation.
 
 Сделать tools:
 
@@ -763,14 +763,14 @@ Demo-run:
 **Вертикальные пылесосы**
 
 ```text
-43 поисковых запроса
-4 рынка
-728 найденных страниц / карточек
-214 полезных product records
-37 архетипов
-20 прошли market screening
-18 имеют supplier signal
-5 финальных opportunities
+43 поисковые гипотезы
+4 LIVE рынка
+8 реальных web-search calls в текущем demo budget
+35–38 уникальных live product records
+37 архетипов — modelled prototype
+20 кандидатов — modelled prototype
+supplier signal — modelled prototype
+5 финальных opportunities — modelled prototype
 ```
 
 Финальный результат:
