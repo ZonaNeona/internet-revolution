@@ -558,7 +558,7 @@ Decision Report
 - ✅ Этап 1 — fixture-driven research execution.
 - ✅ Этап 2 — глубокий TOP-5 UX.
 - ✅ Этап 3 — FastAPI + PostgreSQL + persistent jobs/state machine.
-- 🟡 Этап 4 — market-search часть реализована на всех 4 рынках: WB/Ozon/Amazon/Lazada работают через OpenRouter web-search; supplier search / fetch-source — следующие.
+- ✅ Этап 4A — live Market Search реализован на всех 4 рынках: WB/Ozon/Amazon/Lazada работают через OpenRouter web-search. Supplier/fetch-source остаются отдельным последующим слоем.
 
 Backend уже хранит research runs, jobs, events и audit trail в PostgreSQL. UI восстанавливает активный run после reload по ?run=<uuid>.
 
@@ -642,7 +642,7 @@ Fixture-driven.
 
 ## Этап 4 — OpenRouter Research Tools
 
-**Статус: 🟡 market-search реализован, supplier/fetch ещё в работе.** WB, Ozon, Amazon и Lazada работают через реальные OpenRouter web-search calls. Ozon использует Parallel Search, остальные рынки — Exa. Измеренный полный run «Вертикальные пылесосы»: 4 рынка → 7 успешных search calls → 19 уникальных records → $0.05664 → около 56 секунд до TOP-5. Search calls, actual provider cost, raw products и source evidence сохраняются в PostgreSQL. Есть annotation fallback, numeric normalization, retry semantics и budget reservation.
+**Статус: ✅ live market-search реализован на всех четырёх рынках.** WB, Ozon, Amazon и Lazada работают через реальные OpenRouter web-search calls. Ozon использует Parallel Search, остальные рынки — Exa. Scout extractor — qwen/qwen3-30b-a3b-instruct-2507 без reasoning. Контрольный полный run «Коврики для ванной»: 4 рынка → 8/8 успешных search calls → 38 уникальных records → $0.054027 → 17.5 секунды до TOP-5. Повтор той же категории в течение 6 часов использует cached evidence: 38 records при $0.00 новых market-search расходов и 7.4 секунды. Search calls, actual provider cost, raw products и source evidence сохраняются в PostgreSQL. Есть annotation fallback, numeric normalization, retry semantics, cache reuse и budget reservation.
 
 Сделать tools:
 
