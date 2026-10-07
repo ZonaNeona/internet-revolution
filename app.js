@@ -407,10 +407,11 @@ async function resumeRunFromUrl(){
 
 function renderResults(){
   const d=activeDataset;
+  const runStats=(activeRunState&&activeRunState.stats)||{};
   document.getElementById("resultQuery").textContent=activeQuery;
-  document.getElementById("sumRecords").textContent=d.stats.records;
-  document.getElementById("sumArchetypes").textContent=d.stats.archetypes;
-  document.getElementById("sumSuppliers").textContent=d.stats.suppliers;
+  document.getElementById("sumRecords").textContent=runStats.records ?? d.stats.records;
+  document.getElementById("sumArchetypes").textContent=runStats.archetypes ?? d.stats.archetypes;
+  document.getElementById("sumSuppliers").textContent=runStats.supplier_matches ?? d.stats.suppliers;
   document.getElementById("mainInsightTitle").textContent=d.insight.title;
   document.getElementById("mainInsightText").textContent=d.insight.text;
   document.getElementById("mainTransferScore").textContent=d.insight.transfer;
@@ -480,8 +481,8 @@ function updateHermesContext(screen){
 
 const hermesAnswers=[
   [/как система начн|начнёт поиск/i,"Сначала я определяю intent и расширяю запрос в набор продуктовых гипотез. Затем запускаю четыре Market Scout с доменными ограничениями, собираю доступные карточки и snippets, нормализую признаки и только после этого строю архетипы.","resolve_intent → expand_queries → collect_markets"],
-  [/реальн.*данн|данные.*реаль/i,"Реальными считаются только наблюдаемые значения из источников: URL, цена, рейтинг, review count, характеристики и публичные supplier fields. Market Signal, Trend Transfer и предварительная экономика — наши вычисляемые индексы и modelled assumptions.","get_evidence_policy"],
-  [/стоит|стоимост|budget/i,"Для V1 целевой budget guard — $0.50–2 на глубокий run. Demo показывает $0.74 для сценария вертикальных пылесосов. Лимит останавливает дальнейший поиск, если evidence уже достаточно.","get_budget_status"],
+  [/реальн.*данн|данные.*реаль/i,"Сейчас WB, Ozon, Amazon и Lazada уже исследуются реальным OpenRouter web-search. URL, найденные карточки, доступные цены, рейтинги и review count сохраняются как evidence. Архетипы, Trend Transfer, TOP‑5 и Supplier Probe пока modelled prototype.","get_evidence_policy"],
+  [/стоит|стоимост|budget/i,"Измеренный свежий 4-market scan: 8 web-search вызовов, 35 product records и $0.05468. Повторный запуск в течение 6 часов использует cache и стоит $0 новых search-затрат. Supplier layer пока в эту цифру не входит.","get_budget_status"],
   [/почему не парсим|весь маркетплейс/i,"Полный обход дорог, хрупок и часто блокируется. Product Hunter использует adaptive sampling: расширяет запросы, собирает разнообразную выборку и прекращает поиск, когда новые запросы перестают давать новые архетипы.","explain_sampling_strategy"],
   [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер одновременно имеет высокий зарубежный signal, высокий Russia Gap, достаточный supplier signal и проходит предварительную экономику. То есть это не просто популярный товар, а сильное рыночное расхождение.","get_opportunity_score"],
   [/trend transfer/i,"Trend Transfer V1 — не прогноз продаж. Это индекс расхождения: архетип уже силён на зарубежных рынках, но заметно слабее представлен в РФ. Исторический lead/lag появится только после накопления собственных snapshots.","explain_trend_transfer"],
@@ -493,7 +494,7 @@ function sendHermes(text){
   if(!text.trim())return;
   const chat=document.getElementById("chat");
   chat.insertAdjacentHTML("beforeend",'<div class="msg user"><div><p>'+escapeHtml(text)+'</p></div></div>');
-  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"В demo я отвечаю поверх fixture-состояния. На этапе OpenRouter Research Tools этот же запрос будет вызывать реальные Product Hunter tools и возвращать сохранённый результат research run.","Product Hunter tool · planned"];
+  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"Market evidence уже берётся из LIVE web-search. Для вопросов про архетипы, TOP‑5 и suppliers я пока использую modelled prototype слой до следующего этапа реализации.","Product Hunter context"];
   setTimeout(()=>{
     chat.insertAdjacentHTML("beforeend",'<div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>'+answer[1]+'</p><div class="tool-call">'+answer[2]+'</div></div></div>');
     lucide.createIcons();chat.scrollTop=chat.scrollHeight;
@@ -527,6 +528,7 @@ async function showLiveEvidence(){
     });
     const calls=data.search_calls||[];
     const total=calls.reduce((sum,x)=>sum+Number(x.cost_usd||0),0);
+    const cacheHits=calls.filter(x=>(x.response_meta||{}).cache_hit).length;
     const items=products.length
       ? products.map(p=>{
           const raw=String(p.source_url||"");
@@ -541,8 +543,11 @@ async function showLiveEvidence(){
           return '<a class="live-evidence-item" href="'+escapeHtml(href)+'" target="_blank" rel="noopener noreferrer"><strong>'+escapeHtml(p.title||"Без названия")+'</strong><small>'+escapeHtml(meta)+'</small></a>';
         }).join("")
       : '<div class="live-evidence-item"><strong>Live records пока нет</strong><small>Market Scouts ещё выполняются или сработал fallback.</small></div>';
-    const costs=calls.map((c,i)=>'<span>'+String(c.market||"").toUpperCase()+' · search '+(i+1)+': $'+Number(c.cost_usd||0).toFixed(4)+'</span>').join("");
-    panel.innerHTML='<div class="live-evidence-head"><strong>Live Market Scouts · реальные найденные карточки</strong><span>'+products.length+' показано · $'+total.toFixed(4)+'</span></div><div class="live-evidence-list">'+items+'</div><div class="live-costs">'+costs+'</div>';
+    const costs=calls.map((c,i)=>{
+      const cached=(c.response_meta||{}).cache_hit;
+      return '<span>'+String(c.market||"").toUpperCase()+' · '+(cached?'CACHE':'search '+(i+1))+': $'+Number(c.cost_usd||0).toFixed(4)+'</span>';
+    }).join("");
+    panel.innerHTML='<div class="live-evidence-head"><strong>Live Market Scouts · реальные найденные карточки</strong><span>'+products.length+' показано · $'+total.toFixed(4)+(cacheHits?' · cache '+cacheHits:'')+'</span></div><div class="live-evidence-list">'+items+'</div><div class="live-costs">'+costs+'</div>';
     panel.hidden=false;
   }catch(err){
     showToast("Не удалось загрузить live evidence: "+err.message);
@@ -567,8 +572,9 @@ async function renderResultLiveEvidence(){
     const products=data.products||[];
     if(!calls.length && !products.length){panel.hidden=true;return;}
     const total=calls.reduce((sum,item)=>sum+Number(item.cost_usd||0),0);
+    const cacheHits=calls.filter(x=>(x.response_meta||{}).cache_hit).length;
     const markets=[...new Set(products.map(p=>String(p.market||"").toUpperCase()).filter(Boolean))];
-    panel.textContent="LIVE · "+markets.length+" рынка · "+products.length+" records · $"+total.toFixed(4);
+    panel.textContent="LIVE · "+markets.length+" рынка · "+products.length+" records · $"+total.toFixed(4)+(cacheHits?" · cache "+cacheHits:"");
     panel.hidden=false;
   }catch(err){
     panel.hidden=true;
