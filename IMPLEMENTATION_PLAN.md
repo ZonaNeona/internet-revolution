@@ -708,7 +708,7 @@ Fixture-driven.
 
 ## Этап 8 — Supplier Pipeline
 
-**Статус: ✅ V1 реализовано для TOP‑1 live opportunity.** Alibaba + Made-in-China работают через реальный search-first Supplier Probe. Supplier query строится из фактического лидирующего архетипа. Price/MOQ сохраняются только при наличии evidence; cache работает 6 часов.
+**Статус: ✅ V1 реализовано для TOP‑5 live opportunities.** Alibaba + Made-in-China работают через реальный search-first Supplier Probe. Для каждого архетипа строится отдельный supplier query; Price/MOQ сохраняются только при наличии evidence; cache работает 6 часов.
 
 - supplier query generation;
 - Alibaba scout;
@@ -722,7 +722,7 @@ Fixture-driven.
 
 ## Этап 9 — Economics
 
-**Статус: ✅ Preliminary Economics V1 реализован для TOP‑1.** Live retail/supplier price evidence + assumptions_v1. READY/PARTIAL/INSUFFICIENT_DATA; расчёт не выполняется при несопоставимых данных.
+**Статус: ✅ Preliminary Economics V1 реализован для TOP‑5.** Live retail/supplier price evidence + assumptions_v1. READY/PARTIAL/INSUFFICIENT_DATA; расчёт не выполняется при несопоставимых данных. После stage 6 выполняется final_rank_v1: 80% market + 10% supplier + 10% economics, с решениями TEST/WATCH/NO-GO/NEEDS_DATA.
 
 - retail price range;
 - supplier price;
@@ -730,6 +730,12 @@ Fixture-driven.
 - preliminary margin;
 - sensitivity;
 - score impact.
+
+---
+
+## Final Ranking V1 — реализован
+
+Final Score = 80% Market + 10% Supplier Availability + 10% Economics. После stage 6 все пять кандидатов пересортировываются; итоговое решение: TEST / WATCH / NEEDS_DATA / NO-GO.
 
 ---
 
