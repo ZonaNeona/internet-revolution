@@ -168,11 +168,11 @@ V1 pipeline:
 
 ## Live Supplier Probe
 
-Stage 5 уже работает через реальные Alibaba + Made-in-China search calls.
+Stage 5 уже работает через реальные Alibaba + Made-in-China search calls для всех TOP‑5 live opportunities.
 
 V1:
 
-- supplier query строится из фактического TOP-1 архетипа;
+- supplier query строится отдельно для каждого из TOP-5 архетипов;
 - Alibaba и Made-in-China исследуются параллельно;
 - supplier product pages и source URLs сохраняются в PostgreSQL;
 - price / MOQ / lead time сохраняются только если они реально видимы в evidence;
@@ -194,7 +194,7 @@ Web-fetch enrichment протестирован отдельно: B2B-площа
 Stage 6 реализован.
 
 Экономика использует:
-- retail price evidence из WB/Ozon только для TOP-1 архетипа;
+- retail price evidence из WB/Ozon отдельно для каждого TOP-5 архетипа;
 - supplier price evidence из live Supplier Probe;
 - robust filtering ценовых выбросов;
 - versioned assumptions_v1 для FX, marketplace fee, рекламы, возвратов, налогов, пошлины и логистики.
@@ -208,6 +208,35 @@ Safety rule:
 - LED/Matter: supplier evidence есть, сопоставимой RUB retail price нет → INSUFFICIENT DATA.
 
 FX 95 ₽/$ в economics_v1 — именно модельное допущение, не live exchange rate.
+
+## Final Ranking V1
+
+После Supplier Probe и Preliminary Economics Product Hunter пересчитывает итоговый рейтинг:
+
+- 80% Market Score;
+- 10% Supplier Availability;
+- 10% Economics Score.
+
+Decision rules:
+
+- без supplier/economics evidence → NEEDS_DATA;
+- отрицательная optimistic margin → NO-GO;
+- TEST требует достаточную economics evidence и не менее 20% conservative margin;
+- иначе WATCH / NO-GO.
+
+Контрольный cached vacuum-run:
+
+- 36 live market records;
+- 5 архетипов;
+- 60 supplier offers;
+- TOP market-кандидат «Складная труба + LED-подсветка»;
+- Market Score 80;
+- Supplier Score 100;
+- Economics Score 8.5;
+- Final Score 74.85;
+- решение NO-GO из-за contribution margin -15.3%;
+- полный cached pipeline до финального решения ≈ 10.4 секунды;
+- $0 новых search-расходов благодаря market/supplier cache.
 
 ## Следующий этап
 
