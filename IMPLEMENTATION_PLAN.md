@@ -552,6 +552,18 @@ Decision Report
 
 ---
 
+# Статус реализации на 2026-10-07
+
+- ✅ Этап 0 — новый search-first UX.
+- ✅ Этап 1 — fixture-driven research execution.
+- ✅ Этап 2 — глубокий TOP-5 UX.
+- ✅ Этап 3 — FastAPI + PostgreSQL + persistent jobs/state machine.
+- ⏭ Этап 4 — первый реальный OpenRouter Research Tool.
+
+Backend уже хранит research runs, jobs, events и audit trail в PostgreSQL. UI восстанавливает активный run после reload по ?run=<uuid>.
+
+---
+
 # 20. Этапы реализации
 
 ## Этап 0 — смена UX-концепции
