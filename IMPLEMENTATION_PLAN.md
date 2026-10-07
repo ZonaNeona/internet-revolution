@@ -665,6 +665,8 @@ Fixture-driven.
 
 ## Этап 5 — Product Normalizer
 
+**Статус: ✅ V1 реализовано для трёх demo-категорий.**
+
 - canonical title;
 - currency normalization;
 - brand normalization;
@@ -677,6 +679,8 @@ Fixture-driven.
 
 ## Этап 6 — Archetype Engine
 
+**Статус: ✅ V1 rule-based clustering реализован поверх live records.**
+
 - embeddings;
 - semantic clustering;
 - deterministic feature checks;
@@ -686,6 +690,8 @@ Fixture-driven.
 ---
 
 ## Этап 7 — Signal Engine
+
+**Статус: ✅ signals_v1 реализован и формирует live-derived TOP-5.**
 
 Считать V1:
 
