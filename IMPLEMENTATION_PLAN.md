@@ -708,6 +708,8 @@ Fixture-driven.
 
 ## Этап 8 — Supplier Pipeline
 
+**Статус: ✅ V1 реализовано для TOP‑1 live opportunity.** Alibaba + Made-in-China работают через реальный search-first Supplier Probe. Supplier query строится из фактического лидирующего архетипа. Price/MOQ сохраняются только при наличии evidence; cache работает 6 часов.
+
 - supplier query generation;
 - Alibaba scout;
 - Made-in-China scout;
