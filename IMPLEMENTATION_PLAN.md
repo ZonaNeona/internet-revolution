@@ -558,9 +558,12 @@ Decision Report
 - ✅ Этап 1 — fixture-driven research execution.
 - ✅ Этап 2 — глубокий TOP-5 UX.
 - ✅ Этап 3 — FastAPI + PostgreSQL + persistent jobs/state machine.
-- ✅ Этап 4A — live Market Search реализован на всех 4 рынках: WB/Ozon/Amazon/Lazada работают через OpenRouter web-search. Supplier/fetch-source остаются отдельным последующим слоем.
+- ✅ Этап 4A — live Market Search реализован на всех 4 рынках: WB/Ozon/Amazon/Lazada работают через OpenRouter web-search.
+- ✅ Этапы 5–7 — live Normalizer / Archetype Engine / Signal Engine.
+- ✅ Этап 8 — live Supplier Probe для TOP‑5 через Alibaba + Made-in-China.
+- ✅ Этап 9 — Preliminary Economics V1 + final_rank_v1.
 
-Backend уже хранит research runs, jobs, events и audit trail в PostgreSQL. UI восстанавливает активный run после reload по ?run=<uuid>.
+Backend хранит research runs, jobs, events, raw/normalized products, archetypes, supplier evidence, economics scenarios и audit trail в PostgreSQL. UI восстанавливает активный run после reload по ?run=<uuid>.
 
 ---
 
@@ -774,53 +777,73 @@ Tools:
 
 # 21. Что показываем работодателю
 
-Demo-run:
+Контрольный LIVE demo-run:
 
-**Вертикальные пылесосы**
+**Светодиодные ленты**
 
 ```text
-43 поисковые гипотезы
-4 LIVE рынка
-8 реальных web-search calls в текущем demo budget
-35–38 уникальных live product records
-37 архетипов — modelled prototype
-20 кандидатов — modelled prototype
-supplier signal — modelled prototype
-5 финальных opportunities — modelled prototype
+4 LIVE рынка: WB / Ozon / Amazon / Lazada
+8 market web-search calls
+30 raw live product records
+24 релевантных records после normalizer
+5 live product archetypes
+10 B2B supplier search calls для TOP‑5
+55 supplier offers
+5 economics scenarios
+final_rank_v1 → итоговый TOP‑5
 ```
 
-Финальный результат:
+Контрольный cached run проходит весь pipeline примерно за 10 секунд и не делает новых search-вызовов.
+
+Пример итогового TOP‑5:
 
 ### №1
-**Беспроводной пылесос со складной трубой и LED-подсветкой**
+**RGBIC + Matter / Thread**
 
-- Market Signal 88;
-- Trend Transfer 94;
-- Russia Gap 91;
-- Supplier Availability 84;
-- preliminary margin 31–38%;
-- 17 supplier matches;
-- рекомендация TEST.
+- Market Score 84;
+- Supplier Availability 100;
+- Economics Score 35;
+- Final Score 81;
+- решение NEEDS_DATA;
+- причина: strong market/supplier evidence уже есть, но сопоставимой RUB retail evidence пока недостаточно.
 
-Нажатие раскрывает evidence и TOP-5 suppliers.
+Другой кандидат с частичной экономикой:
+
+**Другая LED-лента**
+
+- Final Score 41;
+- contribution margin range 1.9–38.9%;
+- решение NO-GO по текущему final_rank_v1.
+
+Нажатие раскрывает реальные market evidence URL, отдельный Supplier Probe по архетипу и economics assumptions.
+
+Fresh budget текущего V1:
+
+- market layer ≈ $0.054;
+- TOP‑5 supplier layer ≈ $0.07–0.08;
+- полный fresh run ≈ $0.12–0.14;
+- cached повтор ≈ $0 новых search-затрат.
 
 ---
 
 # 22. Definition of Done V1
 
-V1 готова, когда:
+V1 считается готовой для текущего demo-scope, когда:
 
-- пользователь может ввести произвольную категорию;
-- Hermes строит query expansion;
-- хотя бы один Market Scout делает реальный OpenRouter web research;
+- поддерживаются три demo-категории: vertical vacuum / bath mats / LED strips;
+- можно проверить конкретный товар внутри поддержанной категории;
+- четыре Market Scout выполняют реальный OpenRouter web research;
 - raw evidence сохраняется;
-- найденные товары нормализуются;
-- формируются архетипы;
-- рассчитываются собственные signals;
-- выдаётся TOP-20;
-- supplier probe делает реальный web research;
-- выдаётся TOP-5;
-- все неподтверждённые числа помечены как modelled;
+- товары нормализуются детерминированным V1 Normalizer;
+- формируются live archetypes;
+- рассчитываются собственные cross-market signals;
+- формируется market shortlist;
+- Supplier Probe выполняет реальный web research для TOP‑5;
+- Preliminary Economics рассчитывается по каждому TOP‑5 кандидату или возвращает INSUFFICIENT_DATA;
+- final_rank_v1 пересортировывает TOP‑5 и выдаёт TEST / WATCH / NEEDS_DATA / NO-GO;
+- все assumptions и неподтверждённые значения явно маркируются;
 - каждый сильный вывод имеет evidence;
-- run укладывается в budget guard;
-- fixture demo стабильно работает даже при недоступности внешних источников.
+- fresh run укладывается в budget guard;
+- cached повтор не требует повторной оплаты search evidence.
+
+Произвольная категория без category-specific rule set, универсальный embeddings/semantic clustering, исторический Trend Transfer и точные коммерческие marketplace metrics относятся к следующим версиям.
