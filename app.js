@@ -1,403 +1,386 @@
-var opportunities = [
-  {icon:"shirt",name:"Компактный дорожный отпариватель",meta:"Home & Travel · €35–50",score:86,demand:"Высокий",trend:"+31%",competition:"Средняя",margin:"28,4%",gaps:"3",gapLabel:"2 высокой ценности",decision:"TEST",decisionClass:"test"},
-  {icon:"chef-hat",name:"Магнитная полка для специй",meta:"Kitchen Storage · €28–39",score:82,demand:"Высокий",trend:"+22%",competition:"Низкая",margin:"29,8%",gaps:"2",gapLabel:"1 высокой ценности",decision:"TEST",decisionClass:"test"},
-  {icon:"dog",name:"Портативная мойка для лап",meta:"Pet Care · €22–32",score:79,demand:"Средний",trend:"+37%",competition:"Средняя",margin:"32,7%",gaps:"4",gapLabel:"2 высокой ценности",decision:"TEST",decisionClass:"test"},
-  {icon:"archive",name:"Органайзер под раковину",meta:"Storage · €30–45",score:76,demand:"Высокий",trend:"+14%",competition:"Средняя",margin:"24,3%",gaps:"3",gapLabel:"сборка и материалы",decision:"WATCH",decisionClass:"watch"},
-  {icon:"dumbbell",name:"Складная балансировочная доска",meta:"Fitness · €42–58",score:74,demand:"Средний",trend:"+43%",competition:"Высокая",margin:"27,6%",gaps:"2",gapLabel:"устойчивость",decision:"WATCH",decisionClass:"watch"},
-  {icon:"fan",name:"Аккумуляторный вентилятор для палатки",meta:"Outdoor · €32–46",score:71,demand:"Сезонный",trend:"+28%",competition:"Высокая",margin:"25,4%",gaps:"2",gapLabel:"шум и батарея",decision:"WATCH",decisionClass:"watch"},
-  {icon:"lamp-desk",name:"Компактная лампа для чтения",meta:"Home Office · €24–34",score:68,demand:"Средний",trend:"+9%",competition:"Средняя",margin:"26,2%",gaps:"1",gapLabel:"крепление",decision:"WATCH",decisionClass:"watch"},
-  {icon:"bath",name:"Органайзер для душа без сверления",meta:"Bathroom · €27–40",score:64,demand:"Высокий",trend:"+12%",competition:"Высокая",margin:"23,1%",gaps:"3",gapLabel:"клей и коррозия",decision:"NO-GO",decisionClass:"no"}
-];
-
-var pages = {researches:"Исследования",opportunities:"Возможности",methodology:"Методика оценки"};
-
-function opportunityRows(){
-  return opportunities.map(function(o,i){
-    var scoreClass=o.score>=78?"good":o.score>=70?"mid":"low";
-    return "<tr data-opportunity='"+i+"'>"+
-      "<td><div class='opp-name'><span class='opp-thumb'><i data-lucide='"+o.icon+"'></i></span><div><strong>"+o.name+"</strong><small>"+o.meta+"</small></div></div></td>"+
-      "<td><span class='score "+scoreClass+"'>"+o.score+"</span></td>"+
-      "<td><strong>"+o.demand+"</strong></td>"+
-      "<td><span class='trend up'>"+o.trend+"</span></td>"+
-      "<td><span class='competition'>"+o.competition+"</span></td>"+
-      "<td><b>"+o.margin+"</b></td>"+
-      "<td><div class='review-gap'><b>"+o.gaps+"</b><span>"+o.gapLabel+"</span></div></td>"+
-      "<td><span class='recommendation "+o.decisionClass+"'>"+o.decision+"</span></td>"+
-      "<td><button class='row-open'><i data-lucide='chevron-right'></i></button></td>"+
-    "</tr>";
-  }).join("");
-}
-
-function overviewHtml(){
-  return [
-    "<div class='detail-grid'>",
-      "<article class='panel detail-card'>",
-        "<div class='detail-card-header'><h3>Почему кандидат получил 86 баллов</h3><span class='mini-badge'>6 факторов</span></div>",
-        "<div class='reason-list'>",
-          reason("01","Спрос растёт быстрее категории","Поисковый интерес и число продаж выросли на 31% за 12 месяцев.","market","12 источников"),
-          reason("02","Рынок не сконцентрирован у нескольких брендов","Top-10 продавцов контролируют около 43% наблюдаемого сегмента.","competitors","18 аналогов"),
-          reason("03","Есть повторяющиеся продуктовые проблемы","Протечки, короткий кабель и неудобная заливка воды встречаются у нескольких лидеров.","reviews","417 отзывов"),
-          reason("04","Экономика проходит целевой порог","Базовый сценарий даёт 28,4% contribution margin после рекламы и возвратов.","economics","формула"),
-        "</div>",
-      "</article>",
-      "<article class='panel detail-card'>",
-        "<div class='detail-card-header'><h3>Opportunity Score</h3><span class='score good'>86</span></div>",
-        "<div class='factor-list'>",
-          factor("Спрос","22 / 25",88,"устойчивый объём + рост"),
-          factor("Динамика","14 / 15",93,"+31% за 12 месяцев"),
-          factor("Конкуренция","16 / 20",80,"рынок фрагментирован"),
-          factor("Review Gaps","14 / 15",93,"3 решаемые проблемы"),
-          factor("Экономика","15 / 20",75,"28,4% при цели 25%"),
-          factor("Риск","5 / 5",100,"нет блокирующего риска"),
-        "</div>",
-      "</article>",
-    "</div>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><h3>Что Product Hunter предлагает улучшить</h3>",
-        gap("Герметичный съёмный резервуар","высокая ценность","18,2% негативных отзывов содержат жалобы на протечки. Проблема встречается у 6 из 9 основных аналогов.","1 181 упоминание","6 конкурентов"),
-        gap("Кабель 2,5 м вместо 1,5–1,8 м","высокая ценность","Короткий кабель — второй по частоте сценарный недостаток, особенно в отелях и небольших помещениях.","739 упоминаний","5 конкурентов"),
-      "</article>",
-      "<article class='panel detail-card'><h3>Риски, которые ещё нужно закрыть</h3>",
-        risk("Закупочная цена пока предварительная","Из 7 найденных поставщиков только 3 показывают публичную цену. Нужен RFQ."),
-        risk("CPC в категории растёт","Базовый сценарий использует 12% рекламных расходов. При 17% маржа падает до 23,4%."),
-        "<div class='callout' style='margin-top:10px'><i data-lucide='bot'></i><p><b>Hermes:</b> я бы не переводил товар в GO до получения хотя бы двух подтверждённых quotes. Сейчас правильное решение — TEST.</p></div>",
-      "</article>",
-    "</div>"
-  ].join("");
-}
-
-function marketHtml(){
-  return [
-    "<div class='detail-grid'>",
-      "<article class='panel detail-card'>",
-        "<div class='detail-card-header'><h3>Динамика спроса · 12 месяцев</h3><span class='tag'>+31% г/г</span></div>",
-        "<div class='market-chart'>",
-          "<div class='gridline' style='top:25%'><span>100</span></div><div class='gridline' style='top:50%'><span>75</span></div><div class='gridline' style='top:75%'><span>50</span></div>",
-          "<svg viewBox='0 0 700 150' preserveAspectRatio='none'><defs><linearGradient id='area' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#62dda8' stop-opacity='.28'/><stop offset='100%' stop-color='#62dda8' stop-opacity='0'/></linearGradient></defs><path d='M0,124 L64,119 L128,116 L192,108 L256,111 L320,96 L384,91 L448,84 L512,69 L576,59 L640,42 L700,31 L700,150 L0,150 Z' fill='url(#area)'/><path d='M0,124 L64,119 L128,116 L192,108 L256,111 L320,96 L384,91 L448,84 L512,69 L576,59 L640,42 L700,31' fill='none' stroke='#67dda8' stroke-width='3'/></svg>",
-          "<div class='months'><span>Ноя</span><span>Янв</span><span>Мар</span><span>Май</span><span>Июл</span><span>Сен</span><span>Окт</span></div>",
-        "</div>",
-      "</article>",
-      "<article class='panel detail-card'><h3>Снимок рынка</h3>",
-        "<div class='stat-list'>",
-          stat("Медианная цена","€42,90","+4,1% г/г"),
-          stat("Активных продавцов","73","+8 за квартал"),
-          stat("Top-10 share","43%","низкая концентрация"),
-          stat("Средний рейтинг","4,23","из 5,0"),
-          stat("Медиана отзывов","684","у top-20"),
-          stat("Новых листингов","14","за 90 дней"),
-        "</div>",
-      "</article>",
-    "</div>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><h3>Ценовые сегменты</h3><div class='theme-list'>",
-        theme("€20–34","23%","бюджетные модели · высокая конкуренция ценой",23,""),
-        theme("€35–50","51%","целевой сегмент · лучший баланс спроса и маржи",51,""),
-        theme("€51–70","19%","премиальные модели · сильнее бренды",19,""),
-        theme("€70+","7%","нишевый премиум",7,""),
-      "</div></article>",
-      "<article class='panel detail-card'><h3>Evidence</h3><div class='reason-list'>",
-        "<div class='reason-row'><span><i data-lucide='shopping-bag'></i></span><div><strong>4 812 исходных листингов</strong><small>Собраны в текущем research run, затем нормализованы до 3 926 SKU.</small></div></div>",
-        "<div class='reason-row'><span><i data-lucide='clock-3'></i></span><div><strong>12 временных срезов</strong><small>Для fixture-демо сохранена история по ключевым рыночным признакам.</small></div></div>",
-      "</div></article>",
-    "</div>"
-  ].join("");
-}
-
-function competitorsHtml(){
-  return [
-    "<article class='panel detail-card'>",
-      "<div class='detail-card-header'><div><h3>Смысловые аналоги</h3><p style='font-size:10px;color:#667b73;margin:4px 0 0'>Из 73 листингов система оставила 18 реальных аналогов по сценарию использования, мощности и цене.</p></div><span class='tag'>18 из 73</span></div>",
-      "<div class='data-table'><table><thead><tr><th>Конкурент</th><th>Цена</th><th>Рейтинг</th><th>Отзывы</th><th>Semantic match</th><th>Основная слабость</th><th>Статус</th></tr></thead><tbody>",
-        competitor("SteamGo Mini 1200","€39,99","4,3","2 184",94,"протечки","аналог",""),
-        competitor("VapoTrip S2","€44,90","4,1","1 736",91,"короткий кабель","аналог",""),
-        competitor("QuickPress Compact","€37,50","4,0","1 221",89,"заливка воды","аналог",""),
-        competitor("TravelSteam Pro","€49,90","4,5","918",87,"цена","аналог",""),
-        competitor("HomePress 1800","€32,90","4,2","764",63,"другой сценарий","исключён","warn"),
-      "</tbody></table></div>",
-    "</article>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><h3>Почему исключены 55 товаров</h3><div class='theme-list'>",
-        theme("Другая мощность / форм-фактор","21","не конкурируют в целевом сценарии",38,""),
-        theme("Другой ценовой сегмент","17","существенно дешевле или дороже",31,""),
-        theme("Аксессуары и нерелевантные листинги","11","семантическая ошибка исходной выдачи",20,""),
-        theme("Недостаточно данных","6","нет устойчивых признаков для сравнения",11,""),
-      "</div></article>",
-      "<article class='panel detail-card'><h3>Как это работает</h3>",
-        "<div class='callout'><i data-lucide='sparkles'></i><p><b>AI-слой</b> строит semantic similarity по названию, характеристикам и сценарию использования. После этого детерминированные фильтры проверяют цену, мощность и обязательные признаки.</p></div>",
-        "<div class='callout' style='margin-top:8px'><i data-lucide='shield-check'></i><p>В score попадают только аналоги, которые прошли оба слоя. LLM не может самовольно добавить товар в расчёт.</p></div>",
-      "</article>",
-    "</div>"
-  ].join("");
-}
-
-function reviewsHtml(){
-  return [
-    "<div class='review-summary'>",
-      "<article><span>Проанализировано</span><strong>6 482</strong><small>отзывов на 18 аналогов</small></article>",
-      "<article><span>Негативных сигналов</span><strong>2 941</strong><small>после дедупликации тем</small></article>",
-      "<article><span>Product Gaps</span><strong>3</strong><small>2 высокой ценности</small></article>",
-    "</div>",
-    "<div class='detail-grid equal'>",
-      "<article class='panel detail-card'><div class='detail-card-header'><h3>Основные проблемы покупателей</h3><span class='tag warn'>negative themes</span></div><div class='theme-list'>",
-        theme("Протекает резервуар","18,2%","1 181 упоминание · 6 из 9 ключевых аналогов",82,"negative"),
-        theme("Короткий кабель","11,4%","739 упоминаний · особенно часто у travel-сценариев",51,"negative"),
-        theme("Неудобно заливать воду","8,7%","564 упоминания · узкая горловина",39,"negative"),
-        theme("Слабая упаковка","6,1%","395 упоминаний · повреждения при доставке",28,"negative"),
-      "</div></article>",
-      "<article class='panel detail-card'><div class='detail-card-header'><h3>Что покупателям нравится</h3><span class='tag'>positive themes</span></div><div class='theme-list'>",
-        theme("Быстро нагревается","19,8%","1 284 положительных упоминания",89,""),
-        theme("Компактность","13,8%","894 упоминания",62,""),
-        theme("Удобно брать в поездку","9,7%","629 упоминаний",44,""),
-      "</div></article>",
-    "</div>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><h3>Product Gaps</h3>",
-        gap("01 · Герметичный съёмный резервуар","ценность 92/100","Закрывает крупнейшую проблему и одновременно упрощает заливку воды.","1 181 evidence","6 конкурентов"),
-        gap("02 · Кабель 2,5 м","ценность 84/100","Простое изменение спецификации, закрывающее второй по частоте complaint cluster.","739 evidence","5 конкурентов"),
-        gap("03 · Усиленная внутренняя упаковка","ценность 63/100","Снижает риск повреждения, но увеличивает COGS примерно на €0,18.","395 evidence",""),
-      "</article>",
-      "<article class='panel detail-card'><h3>Примеры evidence</h3><div class='quote-list'>",
-        quote("После двух поездок резервуар начал подтекать в месте соединения.","анонимизированный fixture · рейтинг 2/5 · кластер «протечки»"),
-        quote("Хороший размер для чемодана, но розетка должна быть почти рядом с зеркалом.","анонимизированный fixture · рейтинг 3/5 · кластер «кабель»"),
-        quote("Нагревается очень быстро, в командировках реально удобно.","анонимизированный fixture · рейтинг 5/5 · кластер «быстрый нагрев»"),
-      "</div><button class='btn secondary evidence-link' data-evidence='reviews' style='margin-top:10px'>Показать evidence выборку</button></article>",
-    "</div>"
-  ].join("");
-}
-
-function economicsHtml(){
-  return [
-    "<div class='detail-grid'>",
-      "<article class='panel detail-card'><div class='detail-card-header'><h3>Unit Economics · базовый сценарий</h3><span class='tag'>500 шт.</span></div>",
-        "<div class='waterfall'>",
-          wf("€42,90","90","Цена<br>продажи",""),wf("-€8,70","44","Закупка","negative"),wf("-€3,10","26","Логистика","negative"),wf("-€1,92","18","Пошлины","negative"),wf("-€7,46","38","Комиссия","negative"),wf("-€5,20","31","Fulfillment","negative"),wf("-€3,80","27","Реклама","negative"),wf("-€0,54","10","Возвраты","negative"),wf("€12,18","52","Contribution<br>profit","result"),
-        "</div>",
-      "</article>",
-      "<article class='panel detail-card'><div class='detail-card-header'><h3>Формула</h3><span class='tag'>28,4%</span></div><div class='econ-formula'>",
-        econ("Цена продажи","€42,90",""),econ("Закупочная цена","− €8,70",""),econ("Международная логистика","− €3,10",""),econ("Пошлины","− €1,92",""),econ("Marketplace fee","− €7,46",""),econ("Fulfillment","− €5,20",""),econ("Реклама","− €3,80",""),econ("Возвраты","− €0,54",""),econ("Contribution profit","€12,18 · 28,4%","result"),
-      "</div></article>",
-    "</div>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><h3>Sensitivity analysis</h3><div class='data-table sensitivity-table'><table><thead><tr><th>Сценарий</th><th>Изменение</th><th>Маржа</th><th>Результат</th></tr></thead><tbody>",
-        "<tr><td><strong>Базовый</strong></td><td>—</td><td class='positive'>28,4%</td><td><span class='recommendation test'>TEST</span></td></tr>",
-        "<tr><td><strong>Закупка дорожает</strong></td><td>+10%</td><td class='positive'>26,4%</td><td><span class='recommendation test'>TEST</span></td></tr>",
-        "<tr><td><strong>Реклама дорожает</strong></td><td>12% → 17%</td><td class='negative'>23,4%</td><td><span class='recommendation watch'>WATCH</span></td></tr>",
-        "<tr><td><strong>Цена продажи падает</strong></td><td>−10%</td><td class='negative'>21,2%</td><td><span class='recommendation no'>NO-GO</span></td></tr>",
-      "</tbody></table></div></article>",
-      "<article class='panel detail-card'><h3>Пересчитать сценарий</h3><div class='callout'><i data-lucide='bot'></i><p>В финальной версии можно написать Hermes: <b>«Пересчитай при закупке $9,20 и рекламе 15%»</b>. Он вызовет deterministic calculator и сохранит новый сценарий, а не посчитает цифры в тексте.</p></div><button class='btn secondary hermes-open' style='margin-top:10px'><i data-lucide='bot'></i> Спросить Hermes</button></article>",
-    "</div>"
-  ].join("");
-}
-
-function suppliersHtml(){
-  return [
-    "<div class='detail-grid'>",
-      "<article class='panel detail-card'><div class='detail-card-header'><div><h3>Shortlist поставщиков</h3><p style='font-size:10px;color:#657a72;margin:4px 0 0'>Из 34 найденных фабрик 7 прошли первичный фильтр, 4 соответствуют ограничениям.</p></div><span class='tag'>4 подходят</span></div>",
-        supplier("Ningbo Steam Appliances Co.","score 91","$7,90","500","21 день","Да","поддерживает съёмный резервуар · private label","проходит",""),
-        supplier("Shenzhen Travel Electric Ltd.","score 87","$7,40","1 000","18 дней","Да","цена ниже, но MOQ превышает лимит исследования","нужен RFQ","warn"),
-        supplier("Guangzhou HomeTech Factory","score 84","$8,15","300","24 дня","Да","готовы изменить кабель и внутреннюю упаковку","проходит",""),
-      "</article>",
-      "<article class='panel detail-card'><h3>Следующее действие</h3>",
-        "<div class='callout'><i data-lucide='bot'></i><p><b>Hermes:</b> предлагаю запросить у трёх фабрик цену для партии 500 шт., стоимость съёмного резервуара и кабеля 2,5 м.</p></div>",
-        "<div class='human-actions' style='margin-top:10px'><div class='human-action'><span><i data-lucide='mail'></i></span><div><strong>RFQ подготовлен</strong><small>3 поставщика · 7 вопросов · английский язык</small></div><button data-approval='rfq'>Посмотреть</button></div></div>",
-        "<div class='risk-list' style='margin-top:10px'>"+risk("Цена пока не подтверждена","Экономика использует публичные / fixture quote values. Финальный score должен обновиться после RFQ.")+"</div>",
-      "</article>",
-    "</div>"
-  ].join("");
-}
-
-function decisionHtml(){
-  return [
-    "<div class='decision-hero'><div><span class='eyebrow'>ИТОГ PRODUCT HUNTER</span><h2>Рекомендация: TEST</h2><p>Товар проходит пороги спроса, конкуренции и экономики, а два крупнейших review gaps можно закрыть изменением спецификации. До GO нужно подтвердить закупочную цену.</p></div><div class='decision-score'><strong>82%</strong><span>confidence</span></div></div>",
-    "<div class='detail-grid equal'>",
-      "<article class='panel detail-card'><h3>Почему стоит тестировать</h3><div class='reason-list'>",
-        reason("01","Спрос +31% за 12 месяцев","Категория растёт без резкого роста концентрации лидеров.","",""),
-        reason("02","Top-10 контролируют только 43%","Есть пространство для нового предложения.","",""),
-        reason("03","Два сильных Product Gaps","Протечки и короткий кабель можно закрыть спецификацией.","",""),
-        reason("04","Базовая маржа 28,4%","Выше установленного порога 25%.","",""),
-      "</div></article>",
-      "<article class='panel detail-card'><h3>Что может изменить решение</h3><div class='risk-list'>",
-        risk("RFQ выше $9,70","При прочих равных экономика приблизится к минимальному порогу."),
-        risk("Рекламные расходы >17%","Сценарий становится ниже целевой маржи."),
-        risk("Сертификация увеличит fixed costs","Нужно проверить конкретную конфигурацию продукта."),
-      "</div></article>",
-    "</div>",
-    "<div class='detail-grid equal' style='margin-top:10px'>",
-      "<article class='panel detail-card'><div class='detail-card-header'><h3>Evidence coverage</h3><span class='tag'>96%</span></div><div class='factor-list'>",
-        factor("Рынок","100%",100,"12 источников / срезов"),
-        factor("Конкуренты","100%",100,"18 подтверждённых аналогов"),
-        factor("Отзывы","100%",100,"6 482 записи"),
-        factor("Экономика","100%",100,"воспроизводимая формула"),
-        factor("Поставщики","80%",80,"не хватает подтверждённых quotes"),
-      "</div></article>",
-      "<article class='panel detail-card'><h3>Решения остаются человеку</h3><div class='human-actions'>",
-        approval("package-check","Подтвердить целевую спецификацию","съёмный резервуар · кабель 2,5 м · усиленная упаковка","spec"),
-        approval("send","Подтвердить отправку RFQ","3 выбранных фабрики","rfq"),
-      "</div><div class='callout' style='margin-top:10px'><i data-lucide='shield-check'></i><p>Product Hunter автоматизирует исследование, но не отправляет запросы и не переводит товар в запуск без подтверждения пользователя.</p></div></article>",
-    "</div>"
-  ].join("");
-}
-
-function reason(n,title,text,evidence,label){
-  var button=evidence?"<button class='evidence-link' data-evidence='"+evidence+"'>"+label+"</button>":"";
-  return "<div class='reason-row'><span>"+n+"</span><div><strong>"+title+"</strong><small>"+text+"</small></div>"+button+"</div>";
-}
-function risk(title,text){return "<div class='risk-row'><span>!</span><div><strong>"+title+"</strong><small>"+text+"</small></div></div>";}
-function factor(name,val,width,small){return "<div class='factor'><span>"+name+"</span><b>"+val+"</b><i><em style='width:"+width+"%'></em></i><small>"+small+"</small></div>";}
-function gap(title,badge,text,a,b){
-  var foot=a?"<footer><span class='tag'>"+a+"</span>"+(b?"<span class='tag blue'>"+b+"</span>":"")+"</footer>":"";
-  return "<div class='gap-card'><header><strong>"+title+"</strong><span class='tag'>"+badge+"</span></header><p>"+text+"</p>"+foot+"</div>";
-}
-function stat(label,value,small){return "<div class='stat-box'><span>"+label+"</span><strong>"+value+"</strong><small>"+small+"</small></div>";}
-function theme(title,value,small,width,cls){return "<div class='theme-row "+cls+"'><strong>"+title+"</strong><b>"+value+"</b><small>"+small+"</small><i><em style='width:"+width+"%'></em></i></div>";}
-function competitor(name,price,rating,reviews,match,weak,status,cls){return "<tr><td><strong>"+name+"</strong></td><td>"+price+"</td><td>"+rating+"</td><td>"+reviews+"</td><td><span class='similarity'>"+match+"% <i><em style='width:"+match+"%'></em></i></span></td><td>"+weak+"</td><td><span class='tag "+cls+"'>"+status+"</span></td></tr>";}
-function quote(text,small){return "<div class='review-quote'><p>«"+text+"»</p><small>"+small+"</small></div>";}
-function wf(value,height,label,cls){return "<div class='waterfall-item "+cls+"'><b>"+value+"</b><i style='height:"+height+"%'></i><span>"+label+"</span></div>";}
-function econ(label,value,cls){return "<div class='econ-row "+cls+"'><span>"+label+"</span><b>"+value+"</b></div>";}
-function supplier(name,score,price,moq,lead,custom,small,status,cls){return "<div class='supplier-card'><header><strong>"+name+"</strong><span>"+score+"</span></header><div class='supplier-meta'><div><span>Цена</span><b>"+price+"</b></div><div><span>MOQ</span><b>"+moq+"</b></div><div><span>Lead time</span><b>"+lead+"</b></div><div><span>Кастомизация</span><b>"+custom+"</b></div></div><div class='supplier-footer'><small>"+small+"</small><span class='tag "+cls+"'>"+status+"</span></div></div>";}
-function approval(icon,title,small,type){return "<div class='human-action'><span><i data-lucide='"+icon+"'></i></span><div><strong>"+title+"</strong><small>"+small+"</small></div><button data-approval='"+type+"'>Рассмотреть</button></div>";}
-
-var tabHtml={overview:overviewHtml(),market:marketHtml(),competitors:competitorsHtml(),reviews:reviewsHtml(),economics:economicsHtml(),suppliers:suppliersHtml(),decision:decisionHtml()};
-
-function renderOpportunities(){
-  var body=document.getElementById("opportunityBody");
-  body.innerHTML=opportunityRows();
-  body.querySelectorAll("tr").forEach(function(row){row.addEventListener("click",function(){openOpportunity(Number(row.dataset.opportunity));});});
-}
-
-function renderTabs(){
-  Object.keys(tabHtml).forEach(function(key){var el=document.getElementById("tab-"+key);if(el)el.innerHTML=tabHtml[key];});
-  bindDynamicActions();
-}
-
-function switchView(view){
-  document.querySelectorAll(".view").forEach(function(v){v.classList.remove("active");});
-  var target=document.getElementById("view-"+view);
-  if(target)target.classList.add("active");
-  document.querySelectorAll(".nav-item").forEach(function(n){n.classList.toggle("active",n.dataset.view===view);});
-  document.getElementById("pageTitle").textContent=pages[view]||"Товарная возможность";
-  window.scrollTo(0,0);
-}
-document.querySelectorAll(".nav-item").forEach(function(btn){btn.addEventListener("click",function(){switchView(btn.dataset.view);});});
-
-function openOpportunity(index){
-  var o=opportunities[index]||opportunities[0];
-  document.querySelector("#view-opportunity-detail .opp-title h1").textContent=o.name;
-  document.querySelector("#view-opportunity-detail .opp-title p").textContent=o.meta+" · Amazon DE · обнаружен 7 октября 2026";
-  document.querySelector("#view-opportunity-detail .hero-score strong").textContent=o.score;
-  var rec=document.querySelector("#view-opportunity-detail .opp-decision .recommendation");
-  rec.textContent=o.decision;rec.className="recommendation "+o.decisionClass;
-  switchView("opportunity-detail");activateTab("overview");updateHermesContext("opportunity");lucide.createIcons();
-}
-function activateTab(tab){
-  document.querySelectorAll("#detailTabs button").forEach(function(b){b.classList.toggle("active",b.dataset.tab===tab);});
-  document.querySelectorAll(".tab-pane").forEach(function(p){p.classList.toggle("active",p.id==="tab-"+tab);});
-  updateHermesContext(tab);lucide.createIcons();
-}
-document.querySelectorAll("#detailTabs button").forEach(function(btn){btn.addEventListener("click",function(){activateTab(btn.dataset.tab);});});
-document.getElementById("backToOpps").addEventListener("click",function(){switchView("opportunities");});
-document.querySelectorAll("[data-open-research]").forEach(function(el){el.addEventListener("click",function(e){e.stopPropagation();switchView("opportunities");});});
-
-var drawer=document.getElementById("hermesDrawer");
-var drawerBackdrop=document.getElementById("drawerBackdrop");
-function openHermes(){drawer.classList.add("open");drawerBackdrop.classList.add("open");}
-function closeHermes(){drawer.classList.remove("open");drawerBackdrop.classList.remove("open");}
-document.querySelectorAll(".hermes-open").forEach(function(btn){btn.addEventListener("click",openHermes);});
-document.getElementById("drawerClose").addEventListener("click",closeHermes);
-drawerBackdrop.addEventListener("click",closeHermes);
-
-var suggestions={
-  "default":["Что сейчас исследуется?","Какие кандидаты сильнее 75?","Как считается Opportunity Score?"],
-  "opportunity":["Почему оценка 86?","Покажи три главных риска","Что ещё нужно проверить?"],
-  "market":["Почему считаем спрос растущим?","Насколько рынок концентрирован?","Покажи evidence по динамике"],
-  "competitors":["Почему исключены 55 товаров?","Кто самый близкий аналог?","Где конкуренты слабее всего?"],
-  "reviews":["Какая проблема самая ценная?","Покажи evidence по протечкам","Какие улучшения проще внедрить?"],
-  "economics":["Пересчитай при закупке $9,20","Что сильнее всего влияет на маржу?","Когда сценарий станет NO-GO?"],
-  "suppliers":["Кого запросить первым?","Найди MOQ до 500","Подготовь RFQ"],
-  "decision":["Почему TEST, а не GO?","Что может изменить решение?","Какие действия ждут человека?"]
+const DATASETS = {
+  vacuum: {
+    match: /пылесос/i,
+    query: "Вертикальные пылесосы",
+    subtitle: "Исследуем category space, ищем продуктовые архетипы и cross-market gap.",
+    stats: {queries:43,pages:728,records:214,archetypes:37,candidates:20,suppliers:63,cost:0.74},
+    scouts: {
+      wb:{records:42,queries:9,pages:138},
+      ozon:{records:49,queries:10,pages:154},
+      amazon:{records:68,queries:13,pages:247},
+      lazada:{records:55,queries:11,pages:189}
+    },
+    insight: {
+      title:"Зарубежный тренд уже заметен, а предложение в РФ пока отстаёт",
+      text:"Складная труба и подсветка зоны уборки стабильно встречаются у сильных Amazon/Lazada предложений, но заметно реже представлены на WB/Ozon. Product Hunter считает это потенциальным Trend Transfer.",
+      transfer:94
+    },
+    opportunities:[
+      {
+        title:"Складная труба + LED‑подсветка",
+        desc:"Cordless stick vacuum · 450–550 Вт · bendable tube · green LED",
+        score:91,transfer:94,gap:91,supplier:84,margin:"31–38%",retail:"₽8 500–11 500",supplierPrice:"$27–34",
+        markets:{WB:38,Ozon:44,Amazon:92,Lazada:81},
+        tags:["зарубежный тренд","низкая насыщенность РФ","17 supplier matches"],
+        reasons:[
+          ["Сильный cross-market signal","Архетип широко представлен на Amazon и Lazada, но слабее на WB/Ozon."],
+          ["Функция уже доказана рынком","Складная труба повторяется у нескольких независимых брендов и ценовых сегментов."],
+          ["Russia Gap высокий","На российских площадках предложение заметно менее плотное, чем на зарубежных."],
+          ["Производство доступно","Supplier Probe нашёл 17 похожих OEM/ODM-предложений."]
+        ],
+        evidence:["Amazon · 41 найденная карточка","Lazada · 28 найденных карточек","WB · 9 близких предложений","Ozon · 11 близких предложений"]
+      },
+      {
+        title:"Лёгкий пылесос для шерсти животных",
+        desc:"Lightweight cordless · pet brush · anti-tangle · 2–2.5 кг",
+        score:86,transfer:84,gap:79,supplier:90,margin:"29–36%",retail:"₽7 900–10 900",supplierPrice:"$24–31",
+        markets:{WB:52,Ozon:57,Amazon:88,Lazada:74},
+        tags:["pet hair","anti-tangle","сильный supplier signal"],
+        reasons:[
+          ["Устойчивая проблема пользователя","Pet hair и anti-tangle повторяются в запросах и feature-наборах."],
+          ["Предложение РФ уже есть, но не насыщено","WB/Ozon signal средний, без явной доминации архетипа."],
+          ["Хорошая доступность производства","OEM-предложений больше, чем у большинства кандидатов."],
+          ["Экономика проходит фильтр","Модельная маржа остаётся выше 29% в базовом сценарии."]
+        ],
+        evidence:["Amazon · pet hair query cluster","Lazada · lightweight cluster","WB · 14 близких предложений","Supplier Probe · 21 match"]
+      },
+      {
+        title:"Wet & Dry с самоочисткой",
+        desc:"Wet/dry stick vacuum · self-clean cycle · dual tank",
+        score:82,transfer:87,gap:74,supplier:72,margin:"25–32%",retail:"₽18 900–27 000",supplierPrice:"$62–84",
+        markets:{WB:61,Ozon:64,Amazon:89,Lazada:86},
+        tags:["wet & dry","self-clean","выше средний чек"],
+        reasons:[
+          ["Сильный азиатский сигнал","Архетип особенно заметен на Lazada."],
+          ["Высокий средний чек","Даёт пространство для маржи, но повышает логистический риск."],
+          ["Россия уже догоняет","Gap ниже, чем у TOP‑2: предложение WB/Ozon растёт."],
+          ["Sourcing сложнее","Supplier price и вес продукта уменьшают запас экономики."]
+        ],
+        evidence:["Lazada · 36 близких карточек","Amazon · 29 близких карточек","WB/Ozon · growing presence","Supplier Probe · 11 matches"]
+      },
+      {
+        title:"Self‑standing + съёмный аккумулятор",
+        desc:"Cordless stick vacuum · self-standing · removable battery",
+        score:78,transfer:76,gap:72,supplier:88,margin:"28–34%",retail:"₽8 000–12 000",supplierPrice:"$26–33",
+        markets:{WB:55,Ozon:58,Amazon:78,Lazada:73},
+        tags:["self-standing","removable battery","простая кастомизация"],
+        reasons:[
+          ["Понятное функциональное отличие","Self-standing легко объясняется покупателю и заметно визуально."],
+          ["Supplier signal сильный","Много похожих OEM-моделей и вариантов private label."],
+          ["Cross-market gap умеренный","Российские площадки уже имеют заметное предложение."],
+          ["Низкая сложность модификации","Батарея и стойка доступны в нескольких готовых конфигурациях."]
+        ],
+        evidence:["Amazon · 22 карточки","WB · 15 карточек","Ozon · 17 карточек","Supplier Probe · 19 matches"]
+      },
+      {
+        title:"Док‑станция с автоочисткой контейнера",
+        desc:"Cordless vacuum · auto-empty dock · premium segment",
+        score:73,transfer:89,gap:85,supplier:48,margin:"20–29%",retail:"₽24 000–38 000",supplierPrice:"$110–145",
+        markets:{WB:27,Ozon:31,Amazon:86,Lazada:69},
+        tags:["очень высокий gap","premium","сложный sourcing"],
+        reasons:[
+          ["Очень высокий Russia Gap","На Amazon архетип заметен, на WB/Ozon пока редок."],
+          ["Transfer signal высокий","Может быть ранним трендом, но evidence меньше, чем у TOP‑1."],
+          ["Supplier Availability слабее","Мало подходящих OEM-конфигураций в доступной выборке."],
+          ["Экономика чувствительная","Высокая закупка и логистика снижают итоговый score."]
+        ],
+        evidence:["Amazon · premium cluster","WB/Ozon · low presence","Lazada · early presence","Supplier Probe · 6 matches"]
+      }
+    ]
+  },
+  bath: {
+    match: /коврик|bath mat|каменн/i,
+    query:"Коврики для ванной",
+    subtitle:"Ищем материалы, форм-факторы и cross-market gap внутри категории.",
+    stats:{queries:37,pages:604,records:188,archetypes:31,candidates:18,suppliers:54,cost:0.63},
+    scouts:{wb:{records:44,queries:8,pages:127},ozon:{records:46,queries:9,pages:139},amazon:{records:53,queries:11,pages:181},lazada:{records:45,queries:9,pages:157}},
+    insight:{title:"Материалы нового поколения дают более сильный сигнал, чем дизайн",text:"Stone/diatomite и quick-dry multilayer архетипы заметнее на зарубежных рынках, тогда как российская выдача сильнее сконцентрирована на классическом текстиле.",transfer:90},
+    opportunities:[
+      {title:"Каменный быстросохнущий коврик",desc:"Diatomite / stone bath mat · anti-slip base",score:89,transfer:90,gap:88,supplier:86,margin:"34–43%",retail:"₽2 900–4 900",supplierPrice:"$5.8–8.4",markets:{WB:35,Ozon:39,Amazon:86,Lazada:82},tags:["material shift","высокий Russia Gap","дешёвый sourcing"],reasons:[["Material trend","Stone/diatomite стабильно встречается на Amazon/Lazada."],["Россия отстаёт","На WB/Ozon классический текстиль доминирует сильнее."],["Простая логистика","Товар компактный, но требует контроля боя."],["Много поставщиков","Supplier Probe нашёл широкий диапазон OEM." ]],evidence:["Amazon · stone bath mat cluster","Lazada · diatomite cluster","WB/Ozon · lower presence","Supplier Probe · 23 matches"]},
+      {title:"Многослойный quick‑dry коврик",desc:"Soft surface · absorbent core · rubber base",score:84,transfer:82,gap:73,supplier:92,margin:"38–47%",retail:"₽1 900–3 200",supplierPrice:"$2.7–4.6",markets:{WB:57,Ozon:61,Amazon:82,Lazada:76},tags:["quick-dry","дешёвый sourcing","легко брендировать"],reasons:[["Хороший supplier signal","Очень много OEM-вариантов."],["Маржа привлекательна","Низкая закупка и компактная логистика."],["Gap умеренный","Архетип уже заметен в РФ."],["Дифференциация через дизайн","Материал не уникален, важны принты и размерная сетка."]],evidence:["WB/Ozon · medium presence","Amazon · strong review mass","Lazada · broad offer density","Supplier Probe · 31 matches"]},
+      {title:"Ребристый коврик для душевой зоны",desc:"Raised rib · fast drainage · anti-slip",score:79,transfer:77,gap:71,supplier:83,margin:"31–40%",retail:"₽2 200–3 600",supplierPrice:"$3.9–6.2",markets:{WB:48,Ozon:54,Amazon:78,Lazada:72},tags:["drainage","anti-slip","medium gap"],reasons:[["Функциональный архетип","Основной value — быстрое стекание воды."],["Стабильный cross-market presence","Есть на всех четырёх рынках."],["Средняя конкуренция","Нет явного пустого рынка."],["Поставщики доступны","Несколько типовых форматов OEM."]],evidence:["4-market presence","Supplier Probe · 16 matches","Review themes · drainage","RF offer density medium"]},
+      {title:"Коврик с эффектом memory foam",desc:"Soft memory foam · washable · non-slip",score:74,transfer:65,gap:52,supplier:95,margin:"36–45%",retail:"₽1 500–2 700",supplierPrice:"$2.2–3.8",markets:{WB:71,Ozon:73,Amazon:76,Lazada:68},tags:["зрелый рынок","supplier rich","низкий gap"],reasons:[["Рынок зрелый","Архетип уже хорошо представлен в РФ."],["Supplier Availability высокий","Производство максимально доступно."],["Экономика хорошая","Но commodity-risk снижает score."],["Низкий Trend Transfer","Нет сильного рыночного расхождения."]],evidence:["WB/Ozon · high density","Amazon · mature cluster","Supplier Probe · 39 matches","Russia Gap low"]},
+      {title:"Модульный коврик EVA",desc:"Interlocking EVA · wet zone · modular tiles",score:70,transfer:74,gap:69,supplier:89,margin:"33–42%",retail:"₽1 800–3 500",supplierPrice:"$2.9–5.1",markets:{WB:46,Ozon:49,Amazon:71,Lazada:79},tags:["modular","Lazada signal","niche"],reasons:[["Сильнее в Азии","Lazada signal выше остальных рынков."],["Нишевое применение","Не всегда воспринимается как домашний bath mat."],["Поставщики доступны","Много EVA factories."],["Потребуется точное позиционирование","Иначе товар смешивается с промышленными покрытиями."]],evidence:["Lazada · strong signal","Supplier Probe · 27 matches","WB/Ozon · niche presence","Category ambiguity"]},
+    ]
+  },
+  led: {
+    match: /лент|rgb|led|matter/i,
+    query:"Светодиодные ленты",
+    subtitle:"Ищем feature-комбинации, которые уже доказаны на зарубежных рынках, но не перегреты в РФ.",
+    stats:{queries:48,pages:812,records:246,archetypes:42,candidates:20,suppliers:71,cost:0.81},
+    scouts:{wb:{records:58,queries:11,pages:164},ozon:{records:61,queries:12,pages:178},amazon:{records:72,queries:14,pages:267},lazada:{records:55,queries:11,pages:203}},
+    insight:{title:"Не сама RGB-лента, а комбинация Matter + адресные сегменты формирует новый gap",text:"Базовые RGBIC-ленты уже насыщены на всех рынках. Более интересный сигнал дают модели с Matter/Thread, зональным управлением и готовыми desktop/TV сценариями.",transfer:92},
+    opportunities:[
+      {title:"RGBIC + Matter / Thread",desc:"Addressable LED strip · Matter · smart home",score:90,transfer:92,gap:87,supplier:78,margin:"30–39%",retail:"₽3 900–6 500",supplierPrice:"$9–14",markets:{WB:41,Ozon:45,Amazon:91,Lazada:83},tags:["Matter","smart home","высокий gap"],reasons:[["Feature shift","Matter становится отличием от commodity RGBIC."],["Cross-market signal","Amazon/Lazada заметно сильнее WB/Ozon."],["Russia Gap высокий","Предложение с Matter пока ограничено."],["Sourcing доступен","Supplier Probe нашёл готовые контроллеры и комплекты."]],evidence:["Amazon · Matter cluster","Lazada · smart strip cluster","WB/Ozon · low Matter density","Supplier Probe · 14 matches"]},
+      {title:"TV backlight с камерой",desc:"RGBIC backlight · camera sync · 55–75 inch",score:85,transfer:86,gap:76,supplier:81,margin:"28–37%",retail:"₽5 500–9 000",supplierPrice:"$14–22",markets:{WB:58,Ozon:62,Amazon:88,Lazada:79},tags:["TV sync","camera","medium-high gap"],reasons:[["Понятный use case","Отдельный сценарий вместо generic LED strip."],["Спрос подтверждён зарубежом","Сильная видимость на Amazon."],["Россия уже догоняет","Gap есть, но ниже лидера."],["Комплектность повышает чек","Камера и контроллер дают лучшую экономику."]],evidence:["Amazon · TV sync cluster","WB/Ozon · growing offer","Supplier Probe · 18 matches","Higher retail ticket"]},
+      {title:"Desktop ambient kit",desc:"Monitor backlight · addressable · USB-C · app",score:81,transfer:84,gap:79,supplier:75,margin:"32–41%",retail:"₽3 200–5 500",supplierPrice:"$7–11",markets:{WB:43,Ozon:47,Amazon:83,Lazada:77},tags:["desktop","gaming","USB-C"],reasons:[["Отдельный сегмент","Не конкурирует напрямую со всей категорией LED strips."],["Высокий gap","На РФ-площадках меньше специализированных комплектов."],["Дешёвый sourcing","Компактный набор, низкая закупка."],["Нужен качественный софт","App quality — ключевой риск."]],evidence:["Amazon · gaming desk cluster","Lazada · monitor ambient","WB/Ozon · low specialization","Supplier Probe · 12 matches"]},
+      {title:"Neon rope RGBIC",desc:"Flexible neon rope · diffused light · IP67",score:77,transfer:73,gap:58,supplier:93,margin:"35–44%",retail:"₽2 900–5 000",supplierPrice:"$5–9",markets:{WB:67,Ozon:70,Amazon:79,Lazada:78},tags:["mature","supplier rich","visual product"],reasons:[["Сильная визуальная категория","Хорошо продаётся через контент."],["Gap уже небольшой","Архетип достаточно представлен в РФ."],["Поставщики очень доступны","Много типовых OEM."],["Commodity risk","Легко уйти в ценовую конкуренцию."]],evidence:["4-market strong presence","Supplier Probe · 34 matches","Russia Gap medium-low","High offer density"]},
+      {title:"Outdoor smart strip IP67",desc:"Outdoor RGBIC · IP67 · scene automation",score:74,transfer:78,gap:70,supplier:80,margin:"29–38%",retail:"₽4 500–7 500",supplierPrice:"$11–17",markets:{WB:48,Ozon:52,Amazon:81,Lazada:74},tags:["outdoor","IP67","seasonal"],reasons:[["Отдельный outdoor use case","Меньше прямых аналогов в РФ."],["Сезонность","Спрос чувствителен к сезону."],["Cross-market signal хороший","Amazon заметно сильнее WB/Ozon."],["Sourcing средний","IP-рейтинг требует проверки качества."]],evidence:["Amazon · outdoor cluster","WB/Ozon · moderate gap","Supplier Probe · 15 matches","Seasonality risk"]},
+    ]
+  }
 };
-function updateHermesContext(ctx){
-  ctx=ctx||"default";
-  var contexts={
-    opportunity:"Товар: Дорожный отпариватель · Opportunity 86",
-    overview:"Товар: Дорожный отпариватель · Обзор",
-    market:"Товар: Дорожный отпариватель · Рынок",
-    competitors:"Товар: Дорожный отпариватель · Конкуренты",
-    reviews:"Товар: Дорожный отпариватель · 6 482 отзыва",
-    economics:"Товар: Дорожный отпариватель · Unit Economics",
-    suppliers:"Товар: Дорожный отпариватель · 7 поставщиков",
-    decision:"Товар: Дорожный отпариватель · Решение TEST"
-  };
-  document.querySelector("#drawerContext span").textContent="Контекст: "+(contexts[ctx]||"исследования Product Hunter");
-  var key=suggestions[ctx]?ctx:(ctx==="overview"?"opportunity":"default");
-  document.getElementById("chatSuggestions").innerHTML=(suggestions[key]||suggestions.default).map(function(x){return "<button>"+x+"</button>";}).join("");
-  document.querySelectorAll("#chatSuggestions button").forEach(function(btn){btn.addEventListener("click",function(){sendHermes(btn.textContent);});});
-}
-updateHermesContext("default");
 
-var hermesReplies=[
-  {test:/почему.*86|оценк/i,reply:"Оценка 86 складывается из шести факторов: спрос 22/25, динамика 14/15, конкуренция 16/20, review gaps 14/15, экономика 15/20 и риск 5/5. Самые сильные сигналы — рост спроса и повторяющиеся проблемы у нескольких лидеров.",tool:"get_opportunity → score_breakdown"},
-  {test:/риск/i,reply:"Три ключевых риска: закупочная цена пока не подтверждена RFQ; рекламные расходы могут поднять долю затрат выше 17%; для выбранной конфигурации нужно отдельно проверить сертификацию. Первый риск сейчас сильнее всего влияет на confidence.",tool:"get_opportunity → risks"},
-  {test:/9[,.]20|пересчитай/i,reply:"В fixture-сценарии закупочная цена $9,20 снижает contribution margin примерно до 27%. Это всё ещё выше порога 25%, поэтому решение остаётся TEST. В рабочей версии Hermes вызовет deterministic calculator и сохранит сценарий.",tool:"calculate_economics · DEMO"},
-  {test:/moq|500/i,reply:"Из текущего shortlist ограничения MOQ ≤500 проходят Ningbo Steam Appliances (500) и Guangzhou HomeTech (300). Shenzhen Travel Electric показывает MOQ 1 000 — для неё нужен запрос на снижение MOQ.",tool:"search_suppliers → filter(moq<=500)"},
-  {test:/rfq/i,reply:"RFQ должен запросить цену для 500 шт., стоимость съёмного резервуара, кабеля 2,5 м, усиленной упаковки, lead time и условия private label. Отправка будет доступна только после human approval.",tool:"prepare_rfq · REVIEW_REQUIRED"},
-  {test:/протеч|evidence/i,reply:"Кластер «протекает резервуар» содержит 1 181 упоминание и встречается у 6 из 9 ключевых аналогов. Это 18,2% негативных сигналов в текущей выборке. В интерфейсе этот вывод связан с исходной evidence-выборкой.",tool:"get_evidence → review_cluster"},
-  {test:/test.*go|go.*test|почему.*test/i,reply:"Сейчас TEST, а не GO, потому что рыночная гипотеза и базовая экономика сильные, но закупочная цена ещё не подтверждена коммерческими предложениями. После двух-трёх RFQ система пересчитает economics и confidence.",tool:"get_decision → blockers"}
+const SUPPLIERS = [
+  {name:"Ningbo OEM Factory A",source:"Alibaba",price:"$27–31",moq:"300",lead:"18–24 дн.",match:"94%"},
+  {name:"Shenzhen Appliance Factory B",source:"Made‑in‑China",price:"$29–34",moq:"500",lead:"21–28 дн.",match:"91%"},
+  {name:"Suzhou Private Label C",source:"Alibaba",price:"$28–36",moq:"200",lead:"24–30 дн.",match:"88%"},
+  {name:"Guangdong OEM Works D",source:"Made‑in‑China",price:"$26–33",moq:"500",lead:"20–26 дн.",match:"86%"},
+  {name:"Zhejiang Export Factory E",source:"Alibaba",price:"$31–37",moq:"300",lead:"18–25 дн.",match:"83%"}
 ];
-function escapeHtml(str){return String(str).replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m];});}
-function sendHermes(text){
-  if(!text.trim())return;
-  var chat=document.getElementById("chat");
-  chat.insertAdjacentHTML("beforeend","<div class='msg user'><div><p>"+escapeHtml(text)+"</p></div></div>");
-  var data=hermesReplies.find(function(x){return x.test.test(text);})||{reply:"В демо этот вопрос пока отвечает fixture-слой. На этапе Hermes Orchestration тот же интерфейс будет вызывать Product Hunter tools и возвращать результат из сохранённого состояния исследования.",tool:"Product Hunter tool · planned"};
-  setTimeout(function(){
-    chat.insertAdjacentHTML("beforeend","<div class='msg assistant'><span class='msg-avatar'><i data-lucide='bot'></i></span><div><p>"+data.reply+"</p><div class='tool-call'><i data-lucide='wrench'></i><span>"+data.tool+"</span></div></div></div>");
-    lucide.createIcons();chat.scrollTop=chat.scrollHeight;
-  },260);
-  chat.scrollTop=chat.scrollHeight;
+
+const screens = ["home","run","results","detail"];
+let activeDataset = DATASETS.vacuum;
+let activeQuery = "";
+let runTimers = [];
+let runFinished = false;
+
+function showScreen(name){
+  screens.forEach(s=>document.getElementById("screen-"+s).classList.toggle("active",s===name));
+  window.scrollTo(0,0);
+  updateHermesContext(name);
 }
-document.getElementById("chatForm").addEventListener("submit",function(e){e.preventDefault();var input=document.getElementById("chatInput");sendHermes(input.value);input.value="";});
 
-var modal=document.getElementById("researchModal");
-var modalBackdrop=document.getElementById("modalBackdrop");
-function openModal(){modal.classList.add("open");modalBackdrop.classList.add("open");}
-function closeModal(){modal.classList.remove("open");modalBackdrop.classList.remove("open");}
-document.getElementById("newResearchBtn").addEventListener("click",openModal);
-document.getElementById("modalClose").addEventListener("click",closeModal);
-document.getElementById("modalCancel").addEventListener("click",closeModal);
-modalBackdrop.addEventListener("click",closeModal);
-document.getElementById("oppResearchBtn").addEventListener("click",function(){showToast("Критерии: DE · Amazon DE · €25–70 · маржа ≥25% · MOQ ≤500");});
+function datasetFor(query){
+  return Object.values(DATASETS).find(d=>d.match.test(query)) || DATASETS.vacuum;
+}
 
-document.getElementById("researchForm").addEventListener("submit",function(e){
+document.querySelectorAll(".demo-query").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.getElementById("researchInput").value=btn.dataset.query;
+    startResearch(btn.dataset.query);
+  });
+});
+document.querySelectorAll("[data-home]").forEach(btn=>btn.addEventListener("click",()=>{clearRunTimers();showScreen("home");}));
+document.getElementById("backResults").addEventListener("click",()=>showScreen("results"));
+document.getElementById("historyBtn").addEventListener("click",()=>showToast("История research runs появится после backend/state-machine этапа."));
+
+document.getElementById("researchForm").addEventListener("submit",e=>{
   e.preventDefault();
-  var fd=new FormData(e.currentTarget);
-  var record={category:fd.get("category"),marketplace:fd.get("marketplace"),priceMin:fd.get("priceMin"),priceMax:fd.get("priceMax"),margin:fd.get("margin"),moq:fd.get("moq")};
-  localStorage.setItem("ph-last-research",JSON.stringify(record));
-  var tr=document.createElement("tr");
-  tr.innerHTML="<td><strong>"+escapeHtml(record.category)+" · €"+record.priceMin+"–"+record.priceMax+"</strong><small>маржа ≥"+record.margin+"% · MOQ ≤"+record.moq+"</small></td><td><span class='market'>NEW</span> "+escapeHtml(record.marketplace)+"</td><td><span class='status running'><i></i> Запускается</span></td><td><b>—</b></td><td><span class='score low'>—</span></td><td>только что</td><td><button class='row-open'><i data-lucide='chevron-right'></i></button></td>";
-  document.getElementById("researchTableBody").prepend(tr);
-  closeModal();lucide.createIcons();showToast("Исследование создано. В backend-версии здесь будет запущен job pipeline.");
+  const q=document.getElementById("researchInput").value.trim();
+  if(!q){showToast("Введите категорию или название товара.");return;}
+  startResearch(q);
 });
 
-function showToast(text){
-  var toast=document.getElementById("toast");toast.querySelector("span").textContent=text;toast.classList.add("show");
-  clearTimeout(showToast.timer);showToast.timer=setTimeout(function(){toast.classList.remove("show");},3300);
-}
-function bindDynamicActions(){
-  document.querySelectorAll(".evidence-link").forEach(function(btn){btn.addEventListener("click",function(e){
-    e.stopPropagation();
-    var messages={
-      market:"Evidence: 12 временных срезов и 4 812 исходных листингов.",
-      competitors:"Evidence: 18 подтверждённых смысловых аналогов из 73 найденных.",
-      reviews:"Evidence: выборка из 6 482 отзывов, 1 181 упоминание протечек.",
-      economics:"Расчёт воспроизводим: €42,90 − все переменные затраты = €12,18 contribution profit."
-    };
-    showToast(messages[btn.dataset.evidence]||"Evidence связан с текущим выводом.");
-  });});
-  document.querySelectorAll("[data-approval]").forEach(function(btn){btn.addEventListener("click",function(){showToast("Human approval: действие подготовлено, но не выполняется без подтверждения пользователя.");});});
-  document.querySelectorAll(".tab-pane .hermes-open").forEach(function(btn){btn.addEventListener("click",openHermes);});
+function startResearch(query){
+  clearRunTimers();
+  activeQuery=query;
+  activeDataset=datasetFor(query);
+  runFinished=false;
+  document.getElementById("runTitle").textContent=query;
+  const isSpecific=query.toLowerCase()!==activeDataset.query.toLowerCase();
+  document.getElementById("runSubtitle").textContent=isSpecific
+    ? "Проверяем конкретный товар, ищем его архетип, аналоги и cross-market gap."
+    : activeDataset.subtitle;
+  resetRunUI();
+  showScreen("run");
+  const stages=[
+    {title:"Разбираем запрос",desc:"Определяем intent, категорию и основные характеристики",pct:8,delay:250,log:"resolve_intent → "+query},
+    {title:"Расширяем пространство поиска",desc:"Hermes строит RU/EN запросы и product hypotheses",pct:18,delay:850,log:"expand_queries → "+activeDataset.stats.queries+" поисковых гипотез"},
+    {title:"Market Scouts исследуют рынки",desc:"WB, Ozon, Amazon и Lazada работают параллельно",pct:39,delay:1550,log:"collect_markets → 4 scouts запущены"},
+    {title:"Нормализуем product records",desc:"Извлекаем характеристики, убираем дубликаты и брендовую шумность",pct:53,delay:2600,log:"normalize_products → "+activeDataset.stats.records+" records"},
+    {title:"Строим товарные архетипы",desc:"Embeddings + feature checks объединяют близкие товары",pct:66,delay:3450,log:"cluster_archetypes → "+activeDataset.stats.archetypes+" групп"},
+    {title:"Проверяем производство",desc:"Supplier Probe ищет похожие OEM/ODM предложения",pct:79,delay:4300,log:"probe_suppliers → "+activeDataset.stats.suppliers+" matches"},
+    {title:"Считаем предварительную экономику",desc:"Retail range + supplier range + модельные assumptions",pct:90,delay:5100,log:"calculate_preliminary_economics → TOP-20 пересчитан"},
+    {title:"Готовим TOP‑5",desc:"Финальный Opportunity Score и объяснение сигналов",pct:100,delay:5900,log:"rank_top_5 → отчёт готов"}
+  ];
+  stages.forEach((st,i)=>{
+    runTimers.push(setTimeout(()=>applyStage(i,st),st.delay));
+  });
+  runTimers.push(setTimeout(()=>finishRun(),6800));
 }
 
-renderOpportunities();
-renderTabs();
+function clearRunTimers(){runTimers.forEach(t=>clearTimeout(t));runTimers=[];}
+
+function resetRunUI(){
+  document.getElementById("progressBar").style.width="8%";
+  document.getElementById("progressPercent").textContent="8%";
+  document.getElementById("stageTitle").textContent="Разбираем запрос";
+  document.getElementById("stageDescription").textContent="Определяем intent и категорию";
+  document.getElementById("costValue").textContent="$0.00";
+  document.getElementById("researchLog").innerHTML="";
+  ["statQueries","statPages","statRecords","statArchetypes","statCandidates"].forEach(id=>document.getElementById(id).textContent="0");
+  document.querySelectorAll(".pipe-step").forEach((el,i)=>{el.classList.toggle("active",i===0);el.classList.remove("done");});
+  document.querySelectorAll(".pipeline>i").forEach(el=>el.classList.remove("done"));
+  document.querySelectorAll(".scout").forEach(el=>{
+    el.classList.remove("running","done");
+    el.querySelector(".scout-state").textContent="ожидает";
+    el.querySelector(".scout-count").textContent="0";
+    el.querySelector(".mini-progress i").style.width="0";
+    el.querySelector("footer span:first-child").textContent="0 запросов";
+    el.querySelector("footer span:last-child").textContent="0 страниц";
+  });
+  addLog("Hermes","Новый research run создан.");
+}
+
+function applyStage(index,stage){
+  document.getElementById("stageTitle").textContent=stage.title;
+  document.getElementById("stageDescription").textContent=stage.desc;
+  document.getElementById("progressPercent").textContent=stage.pct+"%";
+  document.getElementById("progressBar").style.width=stage.pct+"%";
+  document.querySelectorAll(".pipe-step").forEach((el,i)=>{
+    el.classList.toggle("active",i===index);
+    el.classList.toggle("done",i<index);
+  });
+  document.querySelectorAll(".pipeline>i").forEach((el,i)=>el.classList.toggle("done",i<index));
+  addLog(index===2?"tool":"Hermes",stage.log,index===2);
+  const s=activeDataset.stats;
+  if(index>=1) document.getElementById("statQueries").textContent=s.queries;
+  if(index===2) startScouts();
+  if(index>=3){document.getElementById("statPages").textContent=s.pages;document.getElementById("statRecords").textContent=s.records;}
+  if(index>=4) document.getElementById("statArchetypes").textContent=s.archetypes;
+  if(index>=5) document.getElementById("statCandidates").textContent=s.candidates;
+  const cost=(s.cost*(stage.pct/100)).toFixed(2);
+  document.getElementById("costValue").textContent="$"+cost;
+}
+
+function startScouts(){
+  const cfg=activeDataset.scouts;
+  Object.entries(cfg).forEach(([key,v],idx)=>{
+    const el=document.querySelector('.scout[data-scout="'+key+'"]');
+    el.classList.add("running");
+    el.querySelector(".scout-state").textContent="исследует";
+    el.querySelector(".mini-progress i").style.width="35%";
+    setTimeout(()=>{
+      el.classList.remove("running");el.classList.add("done");
+      el.querySelector(".scout-state").textContent="готово";
+      el.querySelector(".scout-count").textContent=v.records;
+      el.querySelector(".mini-progress i").style.width="100%";
+      el.querySelector("footer span:first-child").textContent=v.queries+" запросов";
+      el.querySelector("footer span:last-child").textContent=v.pages+" страниц";
+    },700+idx*180);
+  });
+}
+
+function addLog(label,text,tool=false){
+  const log=document.getElementById("researchLog");
+  const time=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  log.insertAdjacentHTML("beforeend",'<div class="log-line '+(tool?"tool":"")+'"><time>'+time+'</time><div><b>'+label+'</b> · '+escapeHtml(text)+'</div></div>');
+  log.scrollTop=log.scrollHeight;
+}
+
+document.getElementById("skipRun").addEventListener("click",finishRun);
+
+function finishRun(){
+  if(runFinished)return;
+  runFinished=true;
+  clearRunTimers();
+  applyStage(7,{title:"Готово",desc:"TOP‑5 товарных возможностей сформирован",pct:100,log:"report_ready → TOP-5"});
+  document.getElementById("costValue").textContent="$"+activeDataset.stats.cost.toFixed(2);
+  Object.entries(activeDataset.scouts).forEach(([key,v])=>{
+    const el=document.querySelector('.scout[data-scout="'+key+'"]');
+    el.classList.remove("running");el.classList.add("done");
+    el.querySelector(".scout-state").textContent="готово";
+    el.querySelector(".scout-count").textContent=v.records;
+    el.querySelector(".mini-progress i").style.width="100%";
+    el.querySelector("footer span:first-child").textContent=v.queries+" запросов";
+    el.querySelector("footer span:last-child").textContent=v.pages+" страниц";
+  });
+  const s=activeDataset.stats;
+  document.getElementById("statQueries").textContent=s.queries;
+  document.getElementById("statPages").textContent=s.pages;
+  document.getElementById("statRecords").textContent=s.records;
+  document.getElementById("statArchetypes").textContent=s.archetypes;
+  document.getElementById("statCandidates").textContent=s.candidates;
+  setTimeout(renderResults,320);
+}
+
+function renderResults(){
+  const d=activeDataset;
+  document.getElementById("resultQuery").textContent=activeQuery;
+  document.getElementById("sumRecords").textContent=d.stats.records;
+  document.getElementById("sumArchetypes").textContent=d.stats.archetypes;
+  document.getElementById("sumSuppliers").textContent=d.stats.suppliers;
+  document.getElementById("mainInsightTitle").textContent=d.insight.title;
+  document.getElementById("mainInsightText").textContent=d.insight.text;
+  document.getElementById("mainTransferScore").textContent=d.insight.transfer;
+  document.getElementById("opportunityList").innerHTML=d.opportunities.map((o,i)=>opportunityCard(o,i)).join("");
+  document.querySelectorAll(".opp-card").forEach(card=>card.addEventListener("click",()=>openOpportunity(Number(card.dataset.index))));
+  lucide.createIcons();
+  showScreen("results");
+}
+
+function opportunityCard(o,i){
+  const marketBars=Object.entries(o.markets).map(([m,v])=>'<div class="market-bar '+((m==="WB"||m==="Ozon")?"ru":"")+'"><span>'+m+'</span><i><em style="width:'+v+'%"></em></i><b>'+v+'</b></div>').join("");
+  return '<article class="opp-card" data-index="'+i+'">'+
+    '<div class="rank">#'+(i+1)+'</div>'+
+    '<div class="opp-copy"><strong>'+o.title+'</strong><small>'+o.desc+'</small><div class="opp-tags">'+o.tags.map(t=>'<span>'+t+'</span>').join("")+'</div></div>'+
+    '<div class="market-bars">'+marketBars+'</div>'+
+    '<div class="opp-scores">'+
+      miniScore("Opportunity",o.score)+miniScore("Trend Transfer",o.transfer)+miniScore("Russia Gap",o.gap)+miniScore("Supplier",o.supplier)+
+    '</div>'+
+    '<button class="opp-open"><i data-lucide="chevron-right"></i></button>'+
+  '</article>';
+}
+function miniScore(label,value){return '<div class="mini-score"><span>'+label+'</span><b>'+value+'</b></div>';}
+
+function openOpportunity(index){
+  const o=activeDataset.opportunities[index];
+  document.getElementById("detailRank").textContent="#"+(index+1);
+  document.getElementById("detailTitle").textContent=o.title;
+  document.getElementById("detailDesc").textContent=o.desc+" · архетип сформирован из cross-market evidence.";
+  document.getElementById("detailScore").textContent=o.score;
+  document.getElementById("marginRange").textContent=o.margin;
+  document.getElementById("retailRange").textContent=o.retail;
+  document.getElementById("supplierPrice").textContent=o.supplierPrice;
+  document.getElementById("supplierSignal").textContent=o.supplier+" / 100";
+  document.getElementById("russiaGap").textContent=o.gap+" / 100";
+  document.getElementById("reasonsList").innerHTML=o.reasons.map((r,i)=>'<div class="reason"><span>0'+(i+1)+'</span><div><strong>'+r[0]+'</strong><small>'+r[1]+'</small></div></div>').join("");
+  document.getElementById("marketSignals").innerHTML=Object.entries(o.markets).map(([m,v])=>'<div class="signal-row '+((m==="WB"||m==="Ozon")?"ru":"")+'"><span>'+m+'</span><i><em style="width:'+v+'%"></em></i><b>'+v+'</b></div>').join("")+
+    '<div class="signal-row"><span>Transfer</span><i><em style="width:'+o.transfer+'%"></em></i><b>'+o.transfer+'</b></div>'+
+    '<div class="signal-row ru"><span>Russia Gap</span><i><em style="width:'+o.gap+'%"></em></i><b>'+o.gap+'</b></div>';
+  document.getElementById("supplierBody").innerHTML=SUPPLIERS.map(s=>'<tr><td><strong>'+s.name+'</strong></td><td><span class="supplier-source">'+s.source+'</span></td><td>'+s.price+'</td><td>'+s.moq+'</td><td>'+s.lead+'</td><td class="match">'+s.match+'</td></tr>').join("");
+  document.getElementById("evidenceGrid").innerHTML=o.evidence.map((e,i)=>'<div class="evidence-item"><span>'+(i<2?"market scout":"evidence")+'</span><strong>'+e+'</strong><small>Fixture record · в live-версии здесь будет source URL и timestamp.</small></div>').join("");
+  lucide.createIcons();
+  showScreen("detail");
+}
+
+const drawer=document.getElementById("drawer");
+const backdrop=document.getElementById("drawerBackdrop");
+function openDrawer(){drawer.classList.add("open");backdrop.classList.add("open");}
+function closeDrawer(){drawer.classList.remove("open");backdrop.classList.remove("open");}
+document.getElementById("hermesOpen").addEventListener("click",openDrawer);
+document.getElementById("floatingHermes").addEventListener("click",openDrawer);
+document.getElementById("drawerClose").addEventListener("click",closeDrawer);
+backdrop.addEventListener("click",closeDrawer);
+
+function updateHermesContext(screen){
+  const map={home:"новый поиск",run:"активный research run",results:"TOP‑5 opportunities",detail:"выбранный товарный архетип"};
+  document.querySelector("#drawerContext span").textContent="Контекст: "+map[screen];
+  const sets={
+    home:["Как система начнёт поиск?","Какие данные считаются реальными?","Сколько стоит один run?"],
+    run:["Что сейчас делает Hermes?","Почему не парсим весь маркетплейс?","Как работает Budget Guard?"],
+    results:["Почему этот товар №1?","Что такое Trend Transfer?","Где самый большой Russia Gap?"],
+    detail:["Почему этот архетип перспективен?","Как найдены поставщики?","Что в экономике модельное?"]
+  };
+  document.getElementById("suggestions").innerHTML=sets[screen].map(x=>'<button>'+x+'</button>').join("");
+  document.querySelectorAll("#suggestions button").forEach(b=>b.addEventListener("click",()=>sendHermes(b.textContent)));
+}
+
+const hermesAnswers=[
+  [/как система начн|начнёт поиск/i,"Сначала я определяю intent и расширяю запрос в набор продуктовых гипотез. Затем запускаю четыре Market Scout с доменными ограничениями, собираю доступные карточки и snippets, нормализую признаки и только после этого строю архетипы.","resolve_intent → expand_queries → collect_markets"],
+  [/реальн.*данн|данные.*реаль/i,"Реальными считаются только наблюдаемые значения из источников: URL, цена, рейтинг, review count, характеристики и публичные supplier fields. Market Signal, Trend Transfer и предварительная экономика — наши вычисляемые индексы и modelled assumptions.","get_evidence_policy"],
+  [/стоит|стоимост|budget/i,"Для V1 целевой budget guard — $0.50–2 на глубокий run. Demo показывает $0.74 для сценария вертикальных пылесосов. Лимит останавливает дальнейший поиск, если evidence уже достаточно.","get_budget_status"],
+  [/почему не парсим|весь маркетплейс/i,"Полный обход дорог, хрупок и часто блокируется. Product Hunter использует adaptive sampling: расширяет запросы, собирает разнообразную выборку и прекращает поиск, когда новые запросы перестают давать новые архетипы.","explain_sampling_strategy"],
+  [/почему.*№1|перв|почему.*архетип|перспектив/i,"Лидер одновременно имеет высокий зарубежный signal, высокий Russia Gap, достаточный supplier signal и проходит предварительную экономику. То есть это не просто популярный товар, а сильное рыночное расхождение.","get_opportunity_score"],
+  [/trend transfer/i,"Trend Transfer V1 — не прогноз продаж. Это индекс расхождения: архетип уже силён на зарубежных рынках, но заметно слабее представлен в РФ. Исторический lead/lag появится только после накопления собственных snapshots.","explain_trend_transfer"],
+  [/поставщик/i,"Supplier Probe строит запросы из спецификации архетипа, а не из названия branded SKU. Потом сравнивает normalized features и semantic similarity на Alibaba и Made-in-China.","probe_suppliers"],
+  [/экономик.*модел|модельн.*эконом/i,"В V1 retail price и supplier price могут приходить из публичных источников, а логистика, комиссии, реклама и возвраты — modelled assumptions. Они явно помечаются и используются только для ранжирования.","explain_economics_assumptions"]
+];
+
+function sendHermes(text){
+  if(!text.trim())return;
+  const chat=document.getElementById("chat");
+  chat.insertAdjacentHTML("beforeend",'<div class="msg user"><div><p>'+escapeHtml(text)+'</p></div></div>');
+  const answer=hermesAnswers.find(([re])=>re.test(text)) || [null,"В demo я отвечаю поверх fixture-состояния. На этапе OpenRouter Research Tools этот же запрос будет вызывать реальные Product Hunter tools и возвращать сохранённый результат research run.","Product Hunter tool · planned"];
+  setTimeout(()=>{
+    chat.insertAdjacentHTML("beforeend",'<div class="msg assistant"><span><i data-lucide="bot"></i></span><div><p>'+answer[1]+'</p><div class="tool-call">'+answer[2]+'</div></div></div>');
+    lucide.createIcons();chat.scrollTop=chat.scrollHeight;
+  },220);
+}
+document.getElementById("chatForm").addEventListener("submit",e=>{e.preventDefault();const input=document.getElementById("chatInput");sendHermes(input.value);input.value="";});
+
+function showToast(text){const t=document.getElementById("toast");t.querySelector("span").textContent=text;t.classList.add("show");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove("show"),3000);}
+function escapeHtml(str){return String(str).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+
+updateHermesContext("home");
 lucide.createIcons();
